@@ -1,0 +1,85 @@
+@page "/admin/academic/course-offerings/{OfferingId:guid}/enroll-student"
+@using Common.Security
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = Permissions.CourseOfferings.EnrollStudent)]
+@using System.Net.Http.Json
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>تخصیص دانشجو</PageTitle>
+
+<MudPaper Class="pa-4">
+    <MudText Typo="Typo.h5">تخصیص دانشجو به ارائه</MudText>
+
+    @if (_offering is not null)
+    {
+        <MudText Class="mt-2">@_offering.CourseTitle - @_offering.SemesterTitle</MudText>
+    }
+
+    <MudTextField @bind-Value="_search" Label="جستجوی دانشجو" Variant="Variant.Outlined" Class="mt-4" />
+    <MudButton Class="mt-2" OnClick="SearchAsync">جستجو</MudButton>
+
+    <MudRadioGroup T="Guid" @bind-Value="_selectedStudentProfileId" Class="mt-4">
+        @foreach (var item in _students)
+        {
+            <MudRadio Value="@item.StudentProfileId">@($"{item.FullName} - {item.StudentNumber}")</MudRadio>
+        }
+    </MudRadioGroup>
+
+    <MudButton Class="mt-4" Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync">ثبت دانشجو در ارائه</MudButton>
+</MudPaper>
+
+@code {
+    [Parameter] public Guid OfferingId { get; set; }
+
+    private string _search = "";
+    private Guid _selectedStudentProfileId;
+    private OfferingDetailsVm? _offering;
+    private List<StudentVm> _students = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _offering = await Http.GetFromJsonAsync<OfferingDetailsVm>($"api/course-offerings/{OfferingId}");
+    }
+
+    private async Task SearchAsync()
+    {
+        if (_offering is null)
+            return;
+
+        _students = await Http.GetFromJsonAsync<List<StudentVm>>(
+            $"api/course-offerings/students/search?majorId={_offering.MajorId}&search={Uri.EscapeDataString(_search ?? "")}") ?? new();
+    }
+
+    private async Task SaveAsync()
+    {
+        var response = await Http.PostAsJsonAsync($"api/course-offerings/{OfferingId}/enrollments", new
+        {
+            StudentProfileId = _selectedStudentProfileId
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("دانشجو به ارائه تخصیص داده شد.", Severity.Success);
+    }
+
+    private sealed class OfferingDetailsVm
+    {
+        public Guid Id { get; set; }
+        public Guid MajorId { get; set; }
+        public string CourseTitle { get; set; } = "";
+        public string SemesterTitle { get; set; } = "";
+    }
+
+    private sealed class StudentVm
+    {
+        public Guid StudentProfileId { get; set; }
+        public string FullName { get; set; } = "";
+        public string StudentNumber { get; set; } = "";
+        public Guid MajorId { get; set; }
+    }
+}

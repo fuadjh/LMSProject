@@ -1,0 +1,39 @@
+﻿@* Shared/Components/AppLookupSelect.razor *@
+@typeparam TValue
+
+<MudSelect T="TValue"
+           Label="@Label"
+           Value="@Value"
+           ValueChanged="@ValueChanged"
+           Variant="Variant.Outlined"
+           Margin="Margin.Dense"
+           Clearable="@Clearable"
+           Disabled="@Disabled">
+
+    @if (ShowAllOption)
+    {
+        <MudSelectItem T="TValue" Value="default(TValue)">همه</MudSelectItem>
+    }
+
+    @if (Items != null)
+    {
+        @foreach (var item in Items)
+        {
+            <MudSelectItem T="TValue" Value="@item.Id">@item.Title</MudSelectItem>
+        }
+    }
+</MudSelect>
+
+@code {
+    [Parameter] public string Label { get; set; } = "انتخاب کنید";
+    [Parameter] public TValue Value { get; set; }
+    [Parameter] public EventCallback<TValue> ValueChanged { get; set; }
+
+    // در اینجا از dynamic استفاده شده تا نیازی به تعریف اینترفیس اجباری نباشد،
+    // اما در پروژه واقعی بهتر است یک اینترفیس ILookup { Guid Id; string Title; } بسازید
+    [Parameter] public IEnumerable<dynamic> Items { get; set; } = new List<dynamic>();
+
+    [Parameter] public bool ShowAllOption { get; set; } = false;
+    [Parameter] public bool Clearable { get; set; } = false;
+    [Parameter] public bool Disabled { get; set; } = false;
+}

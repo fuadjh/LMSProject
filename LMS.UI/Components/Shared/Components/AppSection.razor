@@ -1,0 +1,34 @@
+﻿@using MudBlazor
+
+<MudPaper Class="@($"pa-4 {SectionClass}")">
+    <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+        <MudText Typo="@TitleTypo">@Title</MudText>
+
+        @if (HeaderActions is not null)
+        {
+            <div class="d-flex align-center flex-wrap gap-2">
+                @HeaderActions
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Subtitle))
+    {
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1">
+            @Subtitle
+        </MudText>
+    }
+
+    <div class="mt-4">
+        @ChildContent
+    </div>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public Typo TitleTypo { get; set; } = Typo.h6;
+    [Parameter] public string SectionClass { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? HeaderActions { get; set; }
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = default!;
+}

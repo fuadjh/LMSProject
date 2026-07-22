@@ -1,0 +1,9 @@
+به فایل LmsDbContext.cs دو Property زیر را اضافه کنید:
+
+public IQueryable<UserFacultyScope> UserFacultyScopes =>
+    Set<UserFacultyScope>();
+
+public IQueryable<UserMajorScope> UserMajorScopes =>
+    Set<UserMajorScope>();
+
+همچنین Configuration مربوط به EducationExpertProfile را از Compile حذف نکنید.

@@ -1,0 +1,62 @@
+@* @page "/admin/reference/majors" *@
+@using Common.Security
+@* @attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = Permissions.ReferenceData.Manage)] *@
+@using System.Net.Http.Json
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>رشته‌ها</PageTitle>
+
+<MudPaper Class="pa-4">
+    <MudText Typo="Typo.h5">مدیریت رشته‌ها</MudText>
+
+    <MudSelect T="Guid" Label="دانشکده" @bind-Value="_facultyId" Variant="Variant.Outlined" Class="mt-3">
+        @foreach (var faculty in _faculties)
+        {
+            <MudSelectItem Value="@faculty.Id">@faculty.Title</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudTextField @bind-Value="_title" Label="عنوان رشته" Variant="Variant.Outlined" Class="mt-3" />
+    <MudTextField @bind-Value="_code" Label="کد" Variant="Variant.Outlined" Class="mt-3" />
+
+    <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync">ثبت</MudButton>
+</MudPaper>
+
+@code {
+    private Guid _facultyId;
+    private string _title = "";
+    private string _code = "";
+    private List<LookupVm> _faculties = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _faculties = await Http.GetFromJsonAsync<List<LookupVm>>("api/reference-data/faculties") ?? new();
+    }
+
+    private async Task CreateAsync()
+    {
+        var response = await Http.PostAsJsonAsync("api/reference-data/majors", new
+        {
+            FacultyId = _facultyId,
+            Title = _title,
+            Code = _code
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("رشته ثبت شد.", Severity.Success);
+        _title = _code = string.Empty;
+    }
+
+    private sealed class LookupVm
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = "";
+    }
+}

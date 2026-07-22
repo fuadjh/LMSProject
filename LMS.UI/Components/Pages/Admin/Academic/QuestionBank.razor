@@ -1,0 +1,250 @@
+﻿@page "/admin/academic/course-offerings/{OfferingId:guid}/question-bank"
+@using Common.Security
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = Permissions.QuestionBank.Manage)]
+@using System.Net.Http.Json
+@using Common.Enums
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-4">
+    <MudText Typo="Typo.h5">بانک سوال</MudText>
+
+    <MudGrid Class="mt-2">
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="_model.Title" Label="عنوان سوال" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudSelect T="QuestionType" Label="نوع سوال" @bind-Value="_model.Type" Variant="Variant.Outlined">
+                <MudSelectItem Value="@QuestionType.MultipleChoice">چندگزینه‌ای</MudSelectItem>
+                <MudSelectItem Value="@QuestionType.Essay">تشریحی</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_model.Body" Label="متن سوال" Lines="4" Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" md="3">
+            <MudSelect T="QuestionDifficulty" Label="سختی" @bind-Value="_model.Difficulty" Variant="Variant.Outlined">
+                <MudSelectItem Value="@QuestionDifficulty.Easy">آسان</MudSelectItem>
+                <MudSelectItem Value="@QuestionDifficulty.Medium">متوسط</MudSelectItem>
+                <MudSelectItem Value="@QuestionDifficulty.Hard">سخت</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="3">
+            <MudSelect T="EvaluationDomain" Label="حیطه" @bind-Value="_model.EvaluationDomain" Variant="Variant.Outlined">
+                <MudSelectItem Value="@EvaluationDomain.Cognitive">شناختی</MudSelectItem>
+                <MudSelectItem Value="@EvaluationDomain.Affective">نگرشی</MudSelectItem>
+                <MudSelectItem Value="@EvaluationDomain.Psychomotor">روانی-حرکتی</MudSelectItem>
+                <MudSelectItem Value="@EvaluationDomain.Other">سایر</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="3">
+            <MudSelect T="QuestionSourceType" Label="منبع طراحی" @bind-Value="_model.SourceType" Variant="Variant.Outlined">
+                <MudSelectItem Value="@QuestionSourceType.InstructorDesigned">طراحی استاد</MudSelectItem>
+                <MudSelectItem Value="@QuestionSourceType.Book">کتاب</MudSelectItem>
+                <MudSelectItem Value="@QuestionSourceType.PreviousExam">آزمون قبلی</MudSelectItem>
+                <MudSelectItem Value="@QuestionSourceType.ExternalReference">منبع بیرونی</MudSelectItem>
+                <MudSelectItem Value="@QuestionSourceType.Other">سایر</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="3">
+            <MudNumericField T="decimal" @bind-Value="_model.SuggestedScore" Label="نمره پیشنهادی" Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_model.SourceDescription" Label="توضیح منبع" Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12">
+            <InputFile OnChange="UploadQuestionAttachmentAsync" />
+            @if (!string.IsNullOrWhiteSpace(_model.AttachmentFileName))
+            {
+                <MudText Typo="Typo.caption">فایل: @_model.AttachmentFileName</MudText>
+            }
+        </MudItem>
+    </MudGrid>
+
+    @if (_model.Type == QuestionType.MultipleChoice)
+    {
+        <MudDivider Class="my-4" />
+        <MudText Typo="Typo.h6">گزینه‌ها</MudText>
+
+        @for (int i = 0; i < _model.Options.Count; i++)
+        {
+            var index = i;
+            <MudGrid Class="mt-2">
+                <MudItem xs="12" md="8">
+                    <MudTextField @bind-Value="_model.Options[index].Text" Label="@($"گزینه {index + 1}")" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudCheckBox T="bool" @bind-Value="_model.Options[index].IsCorrect" Label="صحیح" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudButton Color="Color.Error" OnClick="@(() => RemoveOption(index))">حذف</MudButton>
+                </MudItem>
+            </MudGrid>
+        }
+
+        <MudButton Class="mt-2" Variant="Variant.Outlined" OnClick="AddOption">افزودن گزینه</MudButton>
+    }
+
+    <MudButton Class="mt-4" Color="Color.Primary" Variant="Variant.Filled" OnClick="CreateAsync">ثبت سوال</MudButton>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4">
+    <MudText Typo="Typo.h6">سوالات بانک</MudText>
+
+    <MudTable Items="_items" Dense="true" Hover="true" Class="mt-2">
+        <HeaderContent>
+            <MudTh>عنوان</MudTh>
+            <MudTh>نوع</MudTh>
+            <MudTh>سختی</MudTh>
+            <MudTh>نمره</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Title</MudTd>
+            <MudTd>@context.Type</MudTd>
+            <MudTd>@context.Difficulty</MudTd>
+            <MudTd>@context.SuggestedScore</MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    [Parameter] public Guid OfferingId { get; set; }
+
+    private CreateQuestionVm _model = new();
+    private List<QuestionVm> _items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _model.Type = QuestionType.MultipleChoice;
+        _model.Difficulty = QuestionDifficulty.Medium;
+        _model.EvaluationDomain = EvaluationDomain.Cognitive;
+        _model.SourceType = QuestionSourceType.InstructorDesigned;
+        _model.SuggestedScore = 1;
+        _model.Options.Add(new());
+        _model.Options.Add(new());
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _items = await Http.GetFromJsonAsync<List<QuestionVm>>($"api/question-bank/{OfferingId}") ?? new();
+    }
+
+    private void AddOption() => _model.Options.Add(new());
+    private void RemoveOption(int index)
+    {
+        if (index >= 0 && index < _model.Options.Count)
+            _model.Options.RemoveAt(index);
+    }
+
+    private async Task UploadQuestionAttachmentAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(file.OpenReadStream(10 * 1024 * 1024)), "file", file.Name);
+
+        var response = await Http.PostAsync("api/files/upload", content);
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<FileUploadVm>();
+        if (result is null) return;
+
+        _model.AttachmentFileName = result.FileName;
+        _model.AttachmentPath = result.RelativePath;
+    }
+
+    private async Task CreateAsync()
+    {
+        var response = await Http.PostAsJsonAsync("api/question-bank", new
+        {
+            CourseOfferingId = OfferingId,
+            _model.Title,
+            _model.Body,
+            _model.Type,
+            _model.Difficulty,
+            _model.EvaluationDomain,
+            _model.SourceType,
+            _model.SourceDescription,
+            _model.SuggestedScore,
+            _model.AttachmentFileName,
+            _model.AttachmentPath,
+            Options = _model.Options.Select((x, i) => new
+            {
+                x.Text,
+                Order = i + 1,
+                x.IsCorrect
+            }).ToArray()
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("سوال ثبت شد.", Severity.Success);
+
+        _model = new CreateQuestionVm
+        {
+            Type = QuestionType.MultipleChoice,
+            Difficulty = QuestionDifficulty.Medium,
+            EvaluationDomain = EvaluationDomain.Cognitive,
+            SourceType = QuestionSourceType.InstructorDesigned,
+            SuggestedScore = 1,
+            Options = new List<QuestionOptionVm> { new(), new() }
+        };
+
+        await LoadAsync();
+    }
+
+    private sealed class CreateQuestionVm
+    {
+        public string Title { get; set; } = "";
+        public string Body { get; set; } = "";
+        public QuestionType Type { get; set; }
+        public QuestionDifficulty Difficulty { get; set; }
+        public EvaluationDomain EvaluationDomain { get; set; }
+        public QuestionSourceType SourceType { get; set; }
+        public string? SourceDescription { get; set; }
+        public decimal SuggestedScore { get; set; }
+        public string? AttachmentFileName { get; set; }
+        public string? AttachmentPath { get; set; }
+        public List<QuestionOptionVm> Options { get; set; } = new();
+    }
+
+    private sealed class QuestionOptionVm
+    {
+        public string Text { get; set; } = "";
+        public bool IsCorrect { get; set; }
+    }
+
+    private sealed class QuestionVm
+    {
+        public Guid QuestionId { get; set; }
+        public string Title { get; set; } = "";
+        public string Body { get; set; } = "";
+        public QuestionType Type { get; set; }
+        public QuestionDifficulty Difficulty { get; set; }
+        public decimal SuggestedScore { get; set; }
+    }
+
+    private sealed class FileUploadVm
+    {
+        public string FileName { get; set; } = "";
+        public string RelativePath { get; set; } = "";
+    }
+}

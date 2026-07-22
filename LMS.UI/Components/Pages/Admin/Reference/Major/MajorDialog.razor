@@ -1,0 +1,400 @@
+﻿@using System.Net.Http.Json
+@using MudBlazor
+@using WebUi.Components.Crud
+@using WebUi.Pages.Admin.Reference.Major
+
+@inherits CrudUpsertDialogBase<MajorUpsertModel>
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(IsEdit ? "ویرایش رشته" : "ثبت رشته")
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudGrid>
+                <MudItem xs="12">
+                    @if (_loadingUniversities)
+                    {
+                        <MudStack Row="true"
+                                  Spacing="2"
+                                  AlignItems="AlignItems.Center"
+                                  Class="pa-2">
+
+                            <MudProgressCircular Indeterminate="true"
+                                                 Size="Size.Small" />
+
+                            <MudText Typo="Typo.body2">
+                                در حال بارگذاری دانشگاه‌ها...
+                            </MudText>
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudSelect T="Guid?"
+                                   Value="_universityId"
+                                   ValueChanged="OnUniversityChangedAsync"
+                                   Label="دانشگاه"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   RequiredError="انتخاب دانشگاه الزامی است."
+                                   Disabled="IsBusy">
+
+                            @foreach (var university in _universities)
+                            {
+                                <MudSelectItem T="Guid?"
+                                               Value="@((Guid?)university.Id)">
+                                    @university.Title
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                </MudItem>
+
+                <MudItem xs="12">
+                    @if (_universityId is null)
+                    {
+                        <MudTextField T="string"
+                                      Value="@string.Empty"
+                                      Label="دانشکده"
+                                      Variant="Variant.Outlined"
+                                      Disabled="true"
+                                      HelperText="ابتدا دانشگاه را انتخاب کنید." />
+                    }
+                    else if (_loadingFaculties)
+                    {
+                        <MudStack Row="true"
+                                  Spacing="2"
+                                  AlignItems="AlignItems.Center"
+                                  Class="pa-2">
+
+                            <MudProgressCircular Indeterminate="true"
+                                                 Size="Size.Small" />
+
+                            <MudText Typo="Typo.body2">
+                                در حال بارگذاری دانشکده‌ها...
+                            </MudText>
+                        </MudStack>
+                    }
+                    else if (_faculties.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Warning"
+                                  Variant="Variant.Outlined"
+                                  Dense="true">
+                            این دانشگاه دانشکده فعالی ندارد.
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudSelect T="Guid?"
+                                   @bind-Value="_facultyId"
+                                   Label="دانشکده"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   RequiredError="انتخاب دانشکده الزامی است."
+                                   Disabled="IsBusy">
+
+                            @foreach (var faculty in _faculties)
+                            {
+                                <MudSelectItem T="Guid?"
+                                               Value="@((Guid?)faculty.Id)">
+                                    @faculty.Title
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Title"
+                                  Label="عنوان رشته"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="عنوان رشته الزامی است."
+                                  Disabled="IsBusy" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Code"
+                                  Label="کد رشته"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="کد رشته الزامی است."
+                                  Disabled="IsBusy" />
+                </MudItem>
+
+                @if (IsEdit)
+                {
+                    <MudItem xs="12">
+                        <MudSwitch T="bool"
+                                   @bind-Value="_model.IsActive"
+                                   Color="Color.Primary"
+                                   Disabled="IsBusy">
+
+                            @(_model.IsActive
+                                ? "رشته فعال است"
+                                : "رشته غیرفعال است")
+                        </MudSwitch>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Default"
+                   Disabled="IsBusy"
+                   OnClick="CancelDialog">
+            انصراف
+        </MudButton>
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(IsBusy || _loadingUniversities || _loadingFaculties)"
+                   OnClick="SubmitAsync">
+
+            @if (IsBusy)
+            {
+                <MudProgressCircular Indeterminate="true"
+                                     Size="Size.Small"
+                                     Class="me-2" />
+            }
+
+            @(IsEdit ? "ذخیره تغییرات" : "ثبت")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter]
+    public MajorUpsertModel? Model { get; set; }
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    private MudForm? _form;
+
+    private readonly MajorUpsertModel _model = new();
+
+    private Guid? _universityId;
+    private Guid? _facultyId;
+
+    private List<UniversityLookupModel> _universities = [];
+    private List<FacultyLookupModel> _faculties = [];
+
+    private bool _loadingUniversities;
+    private bool _loadingFaculties;
+
+    protected override string CreateEndpoint =>
+        "api/reference-data/majors";
+
+    protected override string GetUpdateEndpoint(
+        MajorUpsertModel model) =>
+        $"api/reference-data/majors/{model.Id}";
+
+    protected override string CreateSuccessMessage =>
+        "رشته ثبت شد.";
+
+    protected override string UpdateSuccessMessage =>
+        "اطلاعات رشته ویرایش شد.";
+
+    protected override void OnParametersSet()
+    {
+        _model.Id = Model?.Id;
+        _model.UniversityId = Model?.UniversityId ?? Guid.Empty;
+        _model.UniversityTitle = Model?.UniversityTitle ?? string.Empty;
+        _model.FacultyId = Model?.FacultyId ?? Guid.Empty;
+        _model.FacultyTitle = Model?.FacultyTitle ?? string.Empty;
+        _model.Title = Model?.Title ?? string.Empty;
+        _model.Code = Model?.Code ?? string.Empty;
+        _model.IsActive = Model?.IsActive ?? true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUniversitiesAsync();
+
+        if (IsEdit && _model.UniversityId != Guid.Empty)
+        {
+            _universityId = _model.UniversityId;
+
+            await LoadFacultiesAsync(_model.UniversityId);
+
+            if (_faculties.Any(x => x.Id == _model.FacultyId))
+                _facultyId = _model.FacultyId;
+        }
+    }
+
+    private async Task LoadUniversitiesAsync()
+    {
+        _loadingUniversities = true;
+
+        try
+        {
+            var response =
+                await Http.GetFromJsonAsync<PagedUniversitiesResponse>(
+                    "api/reference-data/universities" +
+                    "?pageNumber=1" +
+                    "&pageSize=100" +
+                    "&sortBy=title" +
+                    "&sortDescending=false");
+
+            _universities = response?.Items
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Title)
+                .ToList() ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(
+                "دریافت فهرست دانشگاه‌ها ناموفق بود.",
+                Severity.Error);
+        }
+        finally
+        {
+            _loadingUniversities = false;
+        }
+    }
+
+    private async Task LoadFacultiesAsync(Guid universityId)
+    {
+        _loadingFaculties = true;
+        _faculties = [];
+
+        try
+        {
+            var response =
+                await Http.GetFromJsonAsync<PagedFacultiesResponse>(
+                    "api/reference-data/faculties" +
+                    $"?universityId={universityId}" +
+                    "&pageNumber=1" +
+                    "&pageSize=100" +
+                    "&sortBy=title" +
+                    "&sortDescending=false");
+
+            _faculties = response?.Items
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Title)
+                .ToList() ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(
+                "دریافت فهرست دانشکده‌ها ناموفق بود.",
+                Severity.Error);
+        }
+        finally
+        {
+            _loadingFaculties = false;
+        }
+    }
+
+    private async Task OnUniversityChangedAsync(Guid? universityId)
+    {
+        _universityId = universityId;
+        _facultyId = null;
+        _faculties = [];
+
+        if (universityId is not null)
+            await LoadFacultiesAsync(universityId.Value);
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_form is null ||
+            IsBusy ||
+            _loadingUniversities ||
+            _loadingFaculties)
+        {
+            return;
+        }
+
+        await _form.Validate();
+
+        if (!_form.IsValid)
+            return;
+
+        if (_universityId is null)
+        {
+            Snackbar.Add(
+                "انتخاب دانشگاه الزامی است.",
+                Severity.Warning);
+
+            return;
+        }
+
+        if (_facultyId is null)
+        {
+            Snackbar.Add(
+                "انتخاب دانشکده الزامی است.",
+                Severity.Warning);
+
+            return;
+        }
+
+        if (IsEdit && _model.Id is null)
+            return;
+
+        _model.UniversityId = _universityId.Value;
+        _model.FacultyId = _facultyId.Value;
+        _model.Title = _model.Title.Trim();
+        _model.Code = _model.Code.Trim();
+
+        await SaveAsync(_model, IsEdit);
+    }
+
+    protected override object CreateRequest(
+        MajorUpsertModel model)
+    {
+        return new
+        {
+            model.FacultyId,
+            model.Title,
+            model.Code
+        };
+    }
+
+    protected override object UpdateRequest(
+        MajorUpsertModel model)
+    {
+        return new
+        {
+            Id = model.Id,
+            model.FacultyId,
+            model.Title,
+            model.Code,
+            model.IsActive
+        };
+    }
+
+    private sealed class PagedUniversitiesResponse
+    {
+        public List<UniversityLookupModel> Items { get; set; } = [];
+    }
+
+    private sealed class UniversityLookupModel
+    {
+        public Guid Id { get; set; }
+
+        public string Title { get; set; } = string.Empty;
+
+        public bool IsActive { get; set; }
+    }
+
+    private sealed class PagedFacultiesResponse
+    {
+        public List<FacultyLookupModel> Items { get; set; } = [];
+    }
+
+    private sealed class FacultyLookupModel
+    {
+        public Guid Id { get; set; }
+
+        public string Title { get; set; } = string.Empty;
+
+        public bool IsActive { get; set; }
+    }
+}
