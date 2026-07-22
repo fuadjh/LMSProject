@@ -1,0 +1,270 @@
+﻿@page "/admin/academic/course-offerings/{OfferingId:guid}/exams"
+@using Common.Security
+@using Common.Enums
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = Permissions.Exams.Manage)]
+@using System.Net.Http.Json
+
+
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<MudGrid>
+    <MudItem xs="12" md="5">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h5">تعریف آزمون</MudText>
+
+            <MudTextField @bind-Value="_create.Title" Label="عنوان آزمون" Variant="Variant.Outlined" Class="mt-2" />
+
+            <MudSelect T="ExamDeliveryMode" Label="نوع برگزاری" @bind-Value="_create.DeliveryMode" Variant="Variant.Outlined" Class="mt-2">
+                <MudSelectItem Value="@ExamDeliveryMode.Online">آنلاین</MudSelectItem>
+                <MudSelectItem Value="@ExamDeliveryMode.CenterBased">مرکز آزمون</MudSelectItem>
+            </MudSelect>
+
+            <MudDatePicker @bind-Date="_startDate" Label="تاریخ شروع" Variant="Variant.Outlined" Class="mt-2" />
+            <MudTimePicker @bind-Time="_startTime" Label="ساعت شروع" Class="mt-2" />
+
+            <MudDatePicker @bind-Date="_endDate" Label="تاریخ پایان" Variant="Variant.Outlined" Class="mt-2" />
+            <MudTimePicker @bind-Time="_endTime" Label="ساعت پایان" Class="mt-2" />
+
+            <MudNumericField T="int" @bind-Value="_create.DurationMinutes" Label="مدت (دقیقه)" Variant="Variant.Outlined" Class="mt-2" />
+            <MudNumericField T="int" @bind-Value="_create.MaxAttemptsPerStudent" Label="تعداد تلاش مجاز" Variant="Variant.Outlined" Class="mt-2" />
+
+            <MudButton Class="mt-4" Color="Color.Primary" Variant="Variant.Filled" OnClick="CreateExamAsync">
+                ثبت آزمون
+            </MudButton>
+        </MudPaper>
+
+        <MudPaper Class="pa-4 mt-4">
+            <MudText Typo="Typo.h6">آزمون‌ها</MudText>
+
+            <MudList T="ExamVm" Dense="true">
+                @foreach (var exam in _exams)
+                {
+                    <MudListItem T="ExamVm" OnClick="@(() => SelectExamAsync(exam))">
+                        @($"{exam.Title} - {exam.Status}")
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="7">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6">سوالات آزمون</MudText>
+
+            @if (_selectedExam is null)
+            {
+                <MudAlert Severity="Severity.Info">آزمونی انتخاب نشده است.</MudAlert>
+            }
+            else
+            {
+                <MudText>@_selectedExam.Title</MudText>
+                <MudButton Class="mt-2" Variant="Variant.Outlined" OnClick="PublishAsync">انتشار آزمون</MudButton>
+                <MudButton Class="mt-2 ms-2" Variant="Variant.Outlined" OnClick="@(() => Nav.NavigateTo($"/admin/academic/exams/{_selectedExam.ExamId}/grading"))">
+                    تصحیح پاسخ‌ها
+                </MudButton>
+
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle1">سوالات اضافه‌شده</MudText>
+                <MudTable Items="_examQuestions" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>عنوان</MudTh>
+                        <MudTh>نوع</MudTh>
+                        <MudTh>ترتیب</MudTh>
+                        <MudTh>نمره</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Title</MudTd>
+                        <MudTd>@context.Type</MudTd>
+                        <MudTd>@context.Order</MudTd>
+                        <MudTd>@context.Score</MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle1">بانک سوال</MudText>
+
+                <MudTable Items="_questionBank" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>عنوان</MudTh>
+                        <MudTh>نوع</MudTh>
+                        <MudTh>نمره پیشنهادی</MudTh>
+                        <MudTh>ترتیب</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Title</MudTd>
+                        <MudTd>@context.Type</MudTd>
+                        <MudTd>@context.SuggestedScore</MudTd>
+                        <MudTd>
+                            <MudNumericField T="int" @bind-Value="context.Order" Dense="true" />
+                        </MudTd>
+                        <MudTd>
+                            <MudButton Size="Size.Small" OnClick="@(() => AddQuestionAsync(context))">
+                                افزودن
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter] public Guid OfferingId { get; set; }
+
+    private CreateExamVm _create = new()
+    {
+        DeliveryMode = ExamDeliveryMode.Online,
+        DurationMinutes = 60,
+        MaxAttemptsPerStudent = 1
+    };
+
+    private DateTime? _startDate = DateTime.Today;
+    private TimeSpan? _startTime = new(8, 0, 0);
+    private DateTime? _endDate = DateTime.Today;
+    private TimeSpan? _endTime = new(10, 0, 0);
+
+    private List<ExamVm> _exams = new();
+    private ExamVm? _selectedExam;
+    private List<ExamQuestionVm> _examQuestions = new();
+    private List<QuestionBankVm> _questionBank = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExamsAsync();
+        await LoadQuestionBankAsync();
+    }
+
+    private async Task LoadExamsAsync()
+    {
+        _exams = await Http.GetFromJsonAsync<List<ExamVm>>($"api/exams/offering/{OfferingId}") ?? new();
+    }
+
+    private async Task LoadQuestionBankAsync()
+    {
+        _questionBank = await Http.GetFromJsonAsync<List<QuestionBankVm>>($"api/question-bank/{OfferingId}") ?? new();
+        var order = 1;
+        foreach (var item in _questionBank)
+        {
+            item.Order = order++;
+        }
+    }
+
+    private async Task SelectExamAsync(ExamVm exam)
+    {
+        _selectedExam = exam;
+        _examQuestions = await Http.GetFromJsonAsync<List<ExamQuestionVm>>($"api/exams/{exam.ExamId}/questions") ?? new();
+    }
+
+    private async Task CreateExamAsync()
+    {
+        if (!_startDate.HasValue || !_endDate.HasValue || !_startTime.HasValue || !_endTime.HasValue)
+        {
+            Snackbar.Add("تاریخ و زمان آزمون را کامل کنید.", Severity.Error);
+            return;
+        }
+
+        var startsAt = _startDate.Value.Date + _startTime.Value;
+        var endsAt = _endDate.Value.Date + _endTime.Value;
+
+        var response = await Http.PostAsJsonAsync("api/exams", new
+        {
+            CourseOfferingId = OfferingId,
+            _create.Title,
+            _create.DeliveryMode,
+            StartsAtUtc = startsAt,
+            EndsAtUtc = endsAt,
+            _create.DurationMinutes,
+            _create.MaxAttemptsPerStudent
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("آزمون ایجاد شد.", Severity.Success);
+        await LoadExamsAsync();
+    }
+
+    private async Task AddQuestionAsync(QuestionBankVm question)
+    {
+        if (_selectedExam is null)
+        {
+            Snackbar.Add("ابتدا یک آزمون را انتخاب کنید.", Severity.Warning);
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync($"api/exams/{_selectedExam.ExamId}/questions", new
+        {
+            QuestionId = question.QuestionId,
+            Order = question.Order,
+            Score = question.SuggestedScore
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("سوال به آزمون اضافه شد.", Severity.Success);
+        await SelectExamAsync(_selectedExam);
+    }
+
+    private async Task PublishAsync()
+    {
+        if (_selectedExam is null) return;
+
+        var response = await Http.PutAsync($"api/exams/{_selectedExam.ExamId}/publish", null);
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("آزمون منتشر شد.", Severity.Success);
+        await LoadExamsAsync();
+        _selectedExam = _exams.FirstOrDefault(x => x.ExamId == _selectedExam.ExamId);
+        if (_selectedExam is not null)
+            await SelectExamAsync(_selectedExam);
+    }
+
+    private sealed class CreateExamVm
+    {
+        public string Title { get; set; } = "";
+        public ExamDeliveryMode DeliveryMode { get; set; }
+        public int DurationMinutes { get; set; }
+        public int MaxAttemptsPerStudent { get; set; }
+    }
+
+    private sealed class ExamVm
+    {
+        public Guid ExamId { get; set; }
+        public string Title { get; set; } = "";
+        public ExamStatus Status { get; set; }
+    }
+
+    private sealed class ExamQuestionVm
+    {
+        public Guid QuestionId { get; set; }
+        public string Title { get; set; } = "";
+        public QuestionType Type { get; set; }
+        public decimal Score { get; set; }
+        public int Order { get; set; }
+    }
+
+    private sealed class QuestionBankVm
+    {
+        public Guid QuestionId { get; set; }
+        public string Title { get; set; } = "";
+        public QuestionType Type { get; set; }
+        public decimal SuggestedScore { get; set; }
+        public int Order { get; set; }
+    }
+}

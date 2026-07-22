@@ -1,0 +1,21 @@
+﻿
+@using Common.Security
+@using Microsoft.AspNetCore.Components.Authorization
+<AuthorizeView Policy="@Permissions.Courses.Manage">
+    <MudNavLink Href="/admin/academic/courses" Icon="@Icons.Material.Filled.MenuBook">درس‌ها</MudNavLink>
+</AuthorizeView>
+
+<AuthorizeView Policy="@Permissions.Semesters.Manage">
+    <MudNavLink Href="/admin/academic/semesters" Icon="@Icons.Material.Filled.DateRange">نیمسال‌ها</MudNavLink>
+</AuthorizeView>
+
+<AuthorizeView Policy="@Permissions.CourseOfferings.Create">
+    <MudNavLink Href="/admin/academic/course-offerings" Icon="@Icons.Material.Filled.Class">ارائه درس</MudNavLink>
+</AuthorizeView>
+<AuthorizeView Policy="@Permissions.ReferenceData.Manage">
+    <MudNavLink Href="/admin/reference/universities" Icon="@Icons.Material.Filled.AccountBalance">دانشگاه‌ها</MudNavLink>
+</AuthorizeView>
+
+<AuthorizeView Policy="@Permissions.QuestionBank.Manage">
+    <MudNavLink Href="/admin/academic/course-offerings" Icon="@Icons.Material.Filled.Quiz">بانک سوال / آزمون</MudNavLink>
+</AuthorizeView>

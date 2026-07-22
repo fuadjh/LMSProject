@@ -1,0 +1,63 @@
+@page "/"
+@using Common.Security
+@using Microsoft.AspNetCore.Components.Authorization
+@using WebUi.Extensions
+
+
+<PageTitle>داشبورد</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">داشبورد</MudText>
+
+<MudGrid>
+    @if (_user?.HasPermission(Permissions.Courses.Manage) == true)
+    {
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">مدیریت درس‌ها</MudText>
+                <MudButton Href="/admin/academic/courses" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">
+                    ورود
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    }
+
+    @if (_user?.HasPermission(Permissions.CourseOfferings.Create) == true)
+    {
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">ارائه درس</MudText>
+                <MudButton Href="/admin/academic/course-offerings" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">
+                    ورود
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    }
+
+    @if (_user?.HasPermission(Permissions.Security.RolesManage) == true)
+    {
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">امنیت و نقش‌ها</MudText>
+                <MudButton Href="/admin/security/roles" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">
+                    ورود
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    private System.Security.Claims.ClaimsPrincipal? _user;
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask is not null)
+        {
+            var state = await AuthenticationStateTask;
+            _user = state.User;
+        }
+    }
+}

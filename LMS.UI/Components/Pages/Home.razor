@@ -1,0 +1,538 @@
+﻿@page "/LL"
+@rendermode InteractiveServer
+@using MudBlazor
+@using Common.Security
+@inject NavigationManager NavManager
+
+<div class="smartdash-page">
+
+    <!-- Hero / Welcome -->
+    <MudPaper Class="smartdash-hero" Elevation="0">
+        <div class="smartdash-hero-top">
+            <div class="smartdash-hero-content">
+                <div class="smartdash-kicker">
+                    <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Size="Size.Small" />
+                    <span>داشبورد آموزشی هوشمند</span>
+                </div>
+
+                <MudText Typo="Typo.h4" Class="smartdash-title">
+                    @(CurrentMode == DashboardMode.Student ? "سلام، خوش آمدید 👋" : "پنل مدیریت آموزشی 👨‍🏫")
+                </MudText>
+
+                <MudText Typo="Typo.body1" Class="smartdash-subtitle">
+                    @(CurrentMode == DashboardMode.Student
+                                        ? "درس‌ها، تکالیف، فایل‌های جدید و اطلاعیه‌ها را سریع‌تر و با تجربه بهتر مدیریت کنید."
+                                        : "درس‌ها، فعالیت‌های آموزشی، فایل‌ها و پیگیری‌های کلاسی را یک‌جا مدیریت کنید.")
+                </MudText>
+            </div>
+            <AuthorizeView Policy="@Permissions.Students.Create">
+    <Authorized>
+        <button class="btn btn-primary">افزودن دانشجو</button>
+    </Authorized>
+</AuthorizeView>
+
+            <div class="smartdash-hero-actions">
+                @if (CurrentMode == DashboardMode.Student)
+                {
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.CalendarMonth">
+                        برنامه هفتگی
+                    </MudButton>
+
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Assignment">
+                        تکالیف من
+                    </MudButton>
+                }
+                else
+                {
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Quiz">
+                        آزمون‌ساز
+                    </MudButton>
+
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Campaign">
+                        ثبت اطلاعیه
+                    </MudButton>
+                }
+            </div>
+        </div>
+
+        <div class="smartdash-toolbar">
+            <div class="smartdash-toolbar-group">
+                <div class="smartdash-toolbar-label">نیمسال</div>
+                <div class="smartdash-pill-row" role="tablist" aria-label="Semester selector">
+                    @foreach (var semester in semesters)
+                    {
+                        <button type="button"
+                                class="smartdash-pill @(selectedSemesterId == semester.Id ? "is-active" : "")"
+                                @onclick="@(() => selectedSemesterId = semester.Id)">
+                            @semester.Name
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="smartdash-toolbar-group">
+                <div class="smartdash-toolbar-label">نمای کاربری</div>
+                <div class="smartdash-pill-row smartdash-mode-row" role="tablist" aria-label="Mode selector">
+                    <button type="button"
+                            class="smartdash-pill smartdash-mode-pill @(CurrentMode == DashboardMode.Student ? "is-active" : "")"
+                            @onclick="@(() => CurrentMode = DashboardMode.Student)">
+                        <MudIcon Icon="@Icons.Material.Filled.School" Size="Size.Small" />
+                        <span>دانشجو</span>
+                    </button>
+
+                    <button type="button"
+                            class="smartdash-pill smartdash-mode-pill @(CurrentMode == DashboardMode.Teacher ? "is-active" : "")"
+                            @onclick="@(() => CurrentMode = DashboardMode.Teacher)">
+                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                        <span>استاد</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </MudPaper>
+
+    <!-- Stats -->
+    <MudGrid Class="smartdash-stats-grid">
+        <MudItem xs="6" md="3">
+            <MudPaper Class="smartdash-stat-card" Elevation="0">
+                <div class="smartdash-stat-icon smartdash-stat-icon-primary">
+                    <MudIcon Icon="@Icons.Material.Filled.Book" />
+                </div>
+                <div>
+                    <div class="smartdash-stat-value">@FilteredCourses.Count()</div>
+                    <div class="smartdash-stat-label">درس فعال</div>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="6" md="3">
+            <MudPaper Class="smartdash-stat-card" Elevation="0">
+                <div class="smartdash-stat-icon smartdash-stat-icon-secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.Timeline" />
+                </div>
+                <div>
+                    <div class="smartdash-stat-value">@TotalUnits</div>
+                    <div class="smartdash-stat-label">واحد نیمسال</div>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="6" md="3">
+            <MudPaper Class="smartdash-stat-card" Elevation="0">
+                <div class="smartdash-stat-icon smartdash-stat-icon-warning">
+                    <MudIcon Icon="@(CurrentMode == DashboardMode.Student ? Icons.Material.Filled.Assignment : Icons.Material.Filled.Task)" />
+                </div>
+                <div>
+                    <div class="smartdash-stat-value">
+                        @(CurrentMode == DashboardMode.Student ? VisibleAssignments.Count() : teacherTasks.Count)
+                    </div>
+                    <div class="smartdash-stat-label">
+                        @(CurrentMode == DashboardMode.Student ? "کارهای فوری" : "پیگیری آموزشی")
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="6" md="3">
+            <MudPaper Class="smartdash-stat-card" Elevation="0">
+                <div class="smartdash-stat-icon smartdash-stat-icon-success">
+                    <MudIcon Icon="@Icons.Material.Filled.Folder" />
+                </div>
+                <div>
+                    <div class="smartdash-stat-value">@VisibleFiles.Count()</div>
+                    <div class="smartdash-stat-label">فایل جدید</div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Main Content -->
+    <MudGrid Class="smartdash-main-grid">
+        <!-- Courses -->
+        <MudItem xs="12" lg="8">
+            <MudPaper Class="smartdash-section" Elevation="0">
+                <div class="smartdash-section-head">
+                    <div>
+                        <MudText Typo="Typo.h6" Class="smartdash-section-title">درس‌های این نیمسال</MudText>
+                        <MudText Typo="Typo.body2" Class="smartdash-section-subtitle">
+                            جست‌وجو، مرور سریع و ورود مستقیم به هر درس
+                        </MudText>
+                    </div>
+
+                    <div class="smartdash-section-tools">
+                        <MudTextField T="string"
+                                      Value="@searchTerm"
+                                      ValueChanged="@OnSearchChanged"
+                                      Placeholder="جست‌وجو در نام درس، استاد یا کد"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Class="smartdash-search" />
+                    </div>
+                </div>
+
+                @if (VisibleCourses.Any())
+                {
+                    <div class="smartdash-courses-grid">
+                        @foreach (var course in VisibleCourses)
+                        {
+                            <MudPaper Class="smartdash-course-card" Elevation="0">
+                                <div class="smartdash-course-top">
+                                    <div class="smartdash-course-badge">
+                                        <MudIcon Icon="@Icons.Material.Filled.AutoStories" Size="Size.Small" />
+                                        <span>@course.Code</span>
+                                    </div>
+
+                                    @if (course.NewItems > 0)
+                                    {
+                                        <div class="smartdash-dot-badge">
+                                            @course.NewItems مورد جدید
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="smartdash-course-body">
+                                    <MudText Typo="Typo.subtitle1" Class="smartdash-course-name">@course.Name</MudText>
+
+                                    <div class="smartdash-course-meta">
+                                        <div class="smartdash-meta-row">
+                                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                                            <span>@course.Teacher</span>
+                                        </div>
+
+                                        <div class="smartdash-meta-row">
+                                            <MudIcon Icon="@Icons.Material.Filled.Group" Size="Size.Small" Color="Color.Primary" />
+                                            <span>گروه @course.Group</span>
+                                        </div>
+
+                                        <div class="smartdash-meta-row">
+                                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Color="Color.Primary" />
+                                            <span>@course.Schedule</span>
+                                        </div>
+
+                                        <div class="smartdash-meta-row">
+                                            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Size="Size.Small" Color="Color.Primary" />
+                                            <span>@course.Faculty</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="smartdash-course-progress-wrap">
+                                        <div class="smartdash-progress-labels">
+                                            <span>پیشرفت درس</span>
+                                            <span>@course.Progress%</span>
+                                        </div>
+                                        <MudProgressLinear Value="@course.Progress"
+                                                           Rounded="true"
+                                                           Color="Color.Primary"
+                                                           Class="smartdash-progress" />
+                                    </div>
+
+                                    <div class="smartdash-course-footer">
+                                        <div class="smartdash-course-tags">
+                                            <span class="smartdash-tag">@course.Units واحد</span>
+                                            <span class="smartdash-tag">@course.NextSessionText</span>
+                                        </div>
+
+                                        <div class="smartdash-course-actions">
+                                            <MudButton Variant="Variant.Text"
+                                                       Color="Color.Primary"
+                                                       StartIcon="@Icons.Material.Filled.ArrowForward"
+                                                       OnClick="@(() => OpenCourse(course.Id))">
+                                                مشاهده
+                                            </MudButton>
+
+                                            @if (CurrentMode == DashboardMode.Teacher)
+                                            {
+                                                <MudButton Variant="Variant.Text"
+                                                           Color="Color.Secondary"
+                                                           StartIcon="@Icons.Material.Filled.Quiz">
+                                                    آزمون‌ساز
+                                                </MudButton>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </MudPaper>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="false">
+                        موردی برای نمایش پیدا نشد.
+                    </MudAlert>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <!-- Side Panels -->
+        <MudItem xs="12" lg="4">
+            <div class="smartdash-side-stack">
+
+                <MudPaper Class="smartdash-section smartdash-side-card" Elevation="0">
+                    <div class="smartdash-section-head compact">
+                        <div>
+                            <MudText Typo="Typo.h6" Class="smartdash-section-title">
+                                @(CurrentMode == DashboardMode.Student ? "کارهای فوری" : "وظایف استاد")
+                            </MudText>
+                        </div>
+
+                        <span class="smartdash-count-badge">
+                            @(CurrentMode == DashboardMode.Student ? VisibleAssignments.Count() : teacherTasks.Count)
+                        </span>
+                    </div>
+
+                    <div class="smartdash-list">
+                        @if (CurrentMode == DashboardMode.Student)
+                        {
+                            @foreach (var assignment in VisibleAssignments)
+                            {
+                                <div class="smartdash-list-item">
+                                    <div class="smartdash-list-icon warning">
+                                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" />
+                                    </div>
+
+                                    <div class="smartdash-list-content">
+                                        <div class="smartdash-list-title">@assignment.Title</div>
+                                        <div class="smartdash-list-subtitle">@assignment.CourseName</div>
+                                        <div class="smartdash-list-meta">مهلت: @assignment.Deadline</div>
+                                    </div>
+
+                                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                                                   Size="Size.Small"
+                                                   Color="Color.Primary" />
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            @foreach (var task in teacherTasks)
+                            {
+                                <div class="smartdash-list-item">
+                                    <div class="smartdash-list-icon primary">
+                                        <MudIcon Icon="@Icons.Material.Filled.Task" Size="Size.Small" />
+                                    </div>
+
+                                    <div class="smartdash-list-content">
+                                        <div class="smartdash-list-title">@task.Title</div>
+                                        <div class="smartdash-list-subtitle">@task.CourseName</div>
+                                        <div class="smartdash-list-meta">@task.CountText</div>
+                                    </div>
+
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
+                                        @task.DueText
+                                    </MudChip>
+                                </div>
+                            }
+                        }
+                    </div>
+                </MudPaper>
+
+                <MudPaper Class="smartdash-section smartdash-side-card" Elevation="0">
+                    <div class="smartdash-section-head compact">
+                        <MudText Typo="Typo.h6" Class="smartdash-section-title">فایل‌های جدید</MudText>
+                        <span class="smartdash-count-badge">@VisibleFiles.Count()</span>
+                    </div>
+
+                    <div class="smartdash-list">
+                        @foreach (var file in VisibleFiles)
+                        {
+                            <div class="smartdash-list-item">
+                                <div class="smartdash-list-icon info">
+                                    <MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Size="Size.Small" />
+                                </div>
+
+                                <div class="smartdash-list-content">
+                                    <div class="smartdash-list-title">@file.Title</div>
+                                    <div class="smartdash-list-subtitle">@file.CourseName</div>
+                                </div>
+
+                                <MudIconButton Icon="@Icons.Material.Filled.Download"
+                                               Size="Size.Small"
+                                               Color="Color.Primary" />
+                            </div>
+                        }
+                    </div>
+                </MudPaper>
+
+                <MudPaper Class="smartdash-section smartdash-side-card" Elevation="0">
+                    <div class="smartdash-section-head compact">
+                        <MudText Typo="Typo.h6" Class="smartdash-section-title">اطلاعیه‌ها</MudText>
+                        <span class="smartdash-count-badge">@announcements.Count</span>
+                    </div>
+
+                    <div class="smartdash-list">
+                        @foreach (var item in announcements)
+                        {
+                            <div class="smartdash-list-item">
+                                <div class="smartdash-list-icon success">
+                                    <MudIcon Icon="@Icons.Material.Filled.Campaign" Size="Size.Small" />
+                                </div>
+
+                                <div class="smartdash-list-content">
+                                    <div class="smartdash-list-title">@item.Title</div>
+                                    <div class="smartdash-list-subtitle">@item.Description</div>
+                                    <div class="smartdash-list-meta">@item.Date</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </MudPaper>
+
+            </div>
+        </MudItem>
+    </MudGrid>
+</div>
+
+@code {
+    private int selectedSemesterId = 1;
+    private string searchTerm = string.Empty;
+    private DashboardMode CurrentMode = DashboardMode.Student;
+
+    public class CourseModel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public string Group { get; set; } = string.Empty;
+        public string Faculty { get; set; } = string.Empty;
+        public string Teacher { get; set; } = string.Empty;
+        public string Schedule { get; set; } = string.Empty;
+        public int Units { get; set; }
+        public int SemesterId { get; set; }
+        public int Progress { get; set; }
+        public int NewItems { get; set; }
+        public string NextSessionText { get; set; } = string.Empty;
+    }
+
+    public class SemesterModel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class AssignmentModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public string Deadline { get; set; } = string.Empty;
+        public int SemesterId { get; set; }
+    }
+
+    public class FileModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public int SemesterId { get; set; }
+    }
+
+    public class AnnouncementModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Date { get; set; } = string.Empty;
+    }
+
+    public class TeacherTaskModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public string CountText { get; set; } = string.Empty;
+        public string DueText { get; set; } = string.Empty;
+    }
+
+    public enum DashboardMode
+    {
+        Student,
+        Teacher
+    }
+
+    private List<SemesterModel> semesters = new()
+    {
+        new() { Id = 1, Name = "نیمسال اول ۱۴۰۴-۱۴۰۳" },
+        new() { Id = 2, Name = "نیمسال دوم ۱۴۰۳-۱۴۰۲" }
+    };
+
+    private List<CourseModel> allCourses = new()
+    {
+        new() { Id = 1, Name = "برنامه‌سازی پیشرفته", Code = "CS-401", Group = "1", Faculty = "مهندسی کامپیوتر", Teacher = "دکتر احمدی", Schedule = "شنبه 10-12", Units = 3, SemesterId = 1, Progress = 72, NewItems = 2, NextSessionText = "جلسه بعدی: شنبه" },
+        new() { Id = 2, Name = "پایگاه داده پیشرفته", Code = "CS-402", Group = "2", Faculty = "مهندسی کامپیوتر", Teacher = "دکتر کریمی", Schedule = "یکشنبه 13-15", Units = 3, SemesterId = 1, Progress = 58, NewItems = 1, NextSessionText = "جلسه بعدی: یکشنبه" },
+        new() { Id = 3, Name = "مهندسی نرم‌افزار", Code = "CS-403", Group = "1", Faculty = "مهندسی کامپیوتر", Teacher = "دکتر محمدی", Schedule = "دوشنبه 8-10", Units = 3, SemesterId = 1, Progress = 83, NewItems = 0, NextSessionText = "جلسه بعدی: دوشنبه" },
+        new() { Id = 4, Name = "هوش مصنوعی", Code = "CS-404", Group = "1", Faculty = "مهندسی کامپیوتر", Teacher = "دکتر رضایی", Schedule = "سه‌شنبه 14-16", Units = 3, SemesterId = 1, Progress = 64, NewItems = 3, NextSessionText = "جلسه بعدی: سه‌شنبه" },
+        new() { Id = 5, Name = "اینترنت اشیاء", Code = "CS-405", Group = "2", Faculty = "مهندسی برق", Teacher = "دکتر نوروزی", Schedule = "چهارشنبه 9-11", Units = 2, SemesterId = 1, Progress = 41, NewItems = 1, NextSessionText = "جلسه بعدی: چهارشنبه" },
+        new() { Id = 6, Name = "ریاضی عمومی 2", Code = "MATH-202", Group = "3", Faculty = "علوم پایه", Teacher = "دکتر صادقی", Schedule = "شنبه 8-10", Units = 3, SemesterId = 2, Progress = 77, NewItems = 0, NextSessionText = "جلسه بعدی: شنبه" }
+    };
+
+    private List<AssignmentModel> newAssignments = new()
+    {
+        new() { Title = "پروژه نهایی - فاز اول", CourseName = "برنامه‌سازی پیشرفته", Deadline = "25 آذر 1403", SemesterId = 1 },
+        new() { Title = "تمرین سری 5", CourseName = "پایگاه داده پیشرفته", Deadline = "20 آذر 1403", SemesterId = 1 },
+        new() { Title = "تحلیل نیازمندی‌ها", CourseName = "مهندسی نرم‌افزار", Deadline = "22 آذر 1403", SemesterId = 1 },
+        new() { Title = "تمرین فصل 2", CourseName = "ریاضی عمومی 2", Deadline = "18 آبان 1403", SemesterId = 2 }
+    };
+
+    private List<FileModel> newFiles = new()
+    {
+        new() { Title = "اسلایدهای جلسه 8 - هوش مصنوعی", CourseName = "هوش مصنوعی", SemesterId = 1 },
+        new() { Title = "منابع تکمیلی پروژه", CourseName = "برنامه‌سازی پیشرفته", SemesterId = 1 },
+        new() { Title = "تمرین حل شده فصل 4", CourseName = "پایگاه داده پیشرفته", SemesterId = 1 },
+        new() { Title = "جزوه جلسه 3", CourseName = "ریاضی عمومی 2", SemesterId = 2 }
+    };
+
+    private List<AnnouncementModel> announcements = new()
+    {
+        new() { Title = "تعطیلی دانشگاه", Description = "به مناسبت 22 بهمن، دانشگاه تعطیل می‌باشد.", Date = "22 بهمن 1403" },
+        new() { Title = "زمان ثبت نام نیمسال دوم", Description = "ثبت نام نیمسال دوم از 15 دی ماه آغاز می‌شود.", Date = "10 دی 1403" },
+        new() { Title = "کارگاه آموزشی هوش مصنوعی", Description = "کارگاه دو روزه با حضور دکتر رضایی - سالن آمفی‌تئاتر", Date = "5 دی 1403" }
+    };
+
+    private List<TeacherTaskModel> teacherTasks = new()
+    {
+        new() { Title = "تصحیح تکالیف", CourseName = "برنامه‌سازی پیشرفته", CountText = "12 مورد بررسی نشده", DueText = "امروز" },
+        new() { Title = "آماده‌سازی آزمون", CourseName = "هوش مصنوعی", CountText = "نیاز به 10 سوال", DueText = "این هفته" },
+        new() { Title = "پاسخ به تالار گفتگو", CourseName = "مهندسی نرم‌افزار", CountText = "5 سوال جدید", DueText = "جدید" }
+    };
+
+    private IEnumerable<CourseModel> FilteredCourses =>
+        allCourses.Where(x => x.SemesterId == selectedSemesterId);
+
+    private IEnumerable<CourseModel> VisibleCourses =>
+        FilteredCourses.Where(MatchesSearch);
+
+    private IEnumerable<AssignmentModel> VisibleAssignments =>
+        newAssignments.Where(x => x.SemesterId == selectedSemesterId);
+
+    private IEnumerable<FileModel> VisibleFiles =>
+        newFiles.Where(x => x.SemesterId == selectedSemesterId);
+
+    private int TotalUnits => FilteredCourses.Sum(x => x.Units);
+
+    private bool MatchesSearch(CourseModel course)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+            return true;
+
+        return course.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+               || course.Teacher.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+               || course.Code.Contains(searchTerm, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        searchTerm = value;
+    }
+
+    private void OpenCourse(int id)
+    {
+        NavManager.NavigateTo($"/course/{id}");
+    }
+}

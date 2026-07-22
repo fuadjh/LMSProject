@@ -1,0 +1,78 @@
+﻿@inherits LayoutComponentBase
+
+<MudRTLProvider RightToLeft="true">
+    <MudThemeProvider />
+    <MudDialogProvider />
+    <MudSnackbarProvider />
+    <MudPopoverProvider/>
+    <MudLayout>
+        @* AppBar با فاصله از بالا و لبه‌های گرد *@
+        <div class="appbar-container">
+            <MudAppBar Elevation="2" Class="custom-appbar">
+                @* سمت راست - منوی همبرگری و عنوان *@
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" OnClick="@((e) => DrawerToggle())" />
+                <MudText Typo="Typo.h6" Class="ml-2">🎓 داشبورد دانشجو</MudText>
+
+                <MudSpacer />
+
+                @* سمت چپ - آمار و منوی کاربر *@
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">@totalUnits</div>
+                        <div class="stat-label">واحد اخذ شده</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">@totalCourses</div>
+                        <div class="stat-label">درس فعال</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">@newAssignments</div>
+                        <div class="stat-label">تکلیف جدید</div>
+                    </div>
+                </div>
+
+                @* جداکننده عمودی *@
+                <div class="divider-vertical"></div>
+
+                @* منوی کاربر *@
+                <UserMenu />
+            </MudAppBar>
+        </div>
+
+        @* سایدبار با فضای خالی برای لوگو *@
+        <MudDrawer @bind-Open="_drawerOpen"
+                   Elevation="2"
+                   Variant="DrawerVariant.Responsive"
+                   Class="custom-drawer">
+            @* فضای خالی برای لوگو *@
+            <div class="logo-container">
+                <MudAvatar Size="Size.Large" Variant="Variant.Outlined" Class="logo-avatar">
+                    <MudIcon Icon="@Icons.Material.Filled.School" Size="Size.Large" Color="Color.Primary" />
+                </MudAvatar>
+                <span class="logo-text">سامانه آموزش</span>
+            </div>
+
+            @* منوی اصلی *@
+        
+        </MudDrawer>
+        <NavMenu></NavMenu>
+        <MudMainContent>
+            <MudContainer MaxWidth="MaxWidth.Large" Class="my-8">
+                @Body
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+</MudRTLProvider>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private int totalUnits = 14;
+    private int totalCourses = 5;
+    private int newAssignments = 3;
+
+    private void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}

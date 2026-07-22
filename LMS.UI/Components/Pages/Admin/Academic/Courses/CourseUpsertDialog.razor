@@ -1,0 +1,50 @@
+﻿@using MudBlazor
+@using WebUi.Components.Pages.Admin.Academic.Courses
+@using WebUi.Components.Shared.Crud
+
+@inject ICrudPageService<CourseListItemVm, CourseFormModel, Guid> CourseService
+@inject ISnackbar Snackbar
+
+@if (_loaded)
+{
+    <CrudDialogForm TModel="CourseFormModel"
+                    Title="@(_model.Id.HasValue ? "ویرایش درس" : "درس جدید")"
+                    Model="_model"
+                    SubmitText="@(_model.Id.HasValue ? "ذخیره تغییرات" : "ثبت")"
+                    BusyText="در حال ذخیره..."
+                    OnValidSubmit="SaveAsync">
+        <CourseFormFields Model="_model" />
+    </CrudDialogForm>
+}
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private CourseFormModel _model = new();
+    private bool _loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _model = Id.HasValue
+            ? await CourseService.GetForEditAsync(Id.Value)
+            : await CourseService.CreateModelAsync();
+
+        _loaded = true;
+    }
+
+    private async Task SaveAsync(CourseFormModel model)
+    {
+        try
+        {
+            await CourseService.SaveAsync(model);
+            Snackbar.Add("اطلاعات با موفقیت ذخیره شد.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

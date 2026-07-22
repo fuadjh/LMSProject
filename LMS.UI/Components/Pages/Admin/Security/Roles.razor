@@ -1,0 +1,67 @@
+@page "/admin/security/roles"
+@using Common.Security
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = Permissions.Security.RolesManage)]
+@using System.Net.Http.Json
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<MudPaper Class="pa-4">
+    <MudText Typo="Typo.h5">مدیریت نقش‌ها</MudText>
+
+    <MudGrid Class="mt-2">
+        <MudItem xs="12" md="5"><MudTextField @bind-Value="_name" Label="نام نقش" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12" md="5"><MudTextField @bind-Value="_description" Label="توضیح" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12" md="2"><MudButton FullWidth="true" Class="mt-1" OnClick="CreateAsync" Variant="Variant.Filled" Color="Color.Primary">ثبت</MudButton></MudItem>
+    </MudGrid>
+
+    <MudTable Items="_roles" Dense="true" Hover="true" Class="mt-4">
+        <HeaderContent>
+            <MudTh>نام</MudTh>
+            <MudTh>توضیح</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.Description</MudTd>
+            <MudTd>
+                <MudButton Size="Size.Small" OnClick="@(() => Nav.NavigateTo($"/admin/security/roles/{context.Id}/permissions"))">مجوزها</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<RoleVm> _roles = new();
+    private string _name = "";
+    private string _description = "";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _roles = await Http.GetFromJsonAsync<List<RoleVm>>("api/roles") ?? new();
+    }
+
+    private async Task CreateAsync()
+    {
+        var response = await Http.PostAsJsonAsync("api/roles", new { Name = _name, Description = _description });
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("نقش ایجاد شد.", Severity.Success);
+        _name = _description = string.Empty;
+        await LoadAsync();
+    }
+
+    private sealed class RoleVm
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+    }
+}

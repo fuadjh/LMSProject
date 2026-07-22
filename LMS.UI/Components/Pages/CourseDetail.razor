@@ -1,0 +1,1530 @@
+﻿@page "/course/{CourseId:int}"
+@rendermode InteractiveServer
+@using MudBlazor
+@inject NavigationManager NavManager
+
+<div class="lmscourse-page">
+
+    <!-- Hero -->
+    <MudPaper Class="lmscourse-hero" Elevation="0">
+        <div class="lmscourse-hero-top">
+            <div class="lmscourse-hero-main">
+                <div class="lmscourse-breadcrumb">
+                    <button type="button" class="link-btn" @onclick="GoBack">درس‌های من</button>
+                    <span>/</span>
+                    <span>@course.Name</span>
+                </div>
+
+                <div class="lmscourse-kicker">
+                    <MudIcon Icon="@Icons.Material.Filled.School" Size="Size.Small" />
+                    <span>Learning Experience</span>
+                </div>
+
+                <MudText Typo="Typo.h4" Class="lmscourse-title">@course.Name</MudText>
+                <MudText Typo="Typo.body1" Class="lmscourse-subtitle">@course.Description</MudText>
+
+                <div class="lmscourse-meta">
+                    <span class="lmscourse-chip">@course.Code</span>
+                    <span class="lmscourse-chip">@course.Units واحد</span>
+                    <span class="lmscourse-chip">گروه @course.Group</span>
+                    <span class="lmscourse-chip">@course.Teacher</span>
+                    <span class="lmscourse-chip">@course.Schedule</span>
+                </div>
+            </div>
+
+            <div class="lmscourse-hero-side">
+                <div class="lmscourse-role-switch">
+                    <button type="button"
+                            class="role-pill @(CurrentRole == CourseRole.Student ? "active" : "")"
+                            @onclick="@(() => CurrentRole = CourseRole.Student)">
+                        <MudIcon Icon="@Icons.Material.Filled.School" Size="Size.Small" />
+                        <span>دانشجو</span>
+                    </button>
+
+                    <button type="button"
+                            class="role-pill @(CurrentRole == CourseRole.Teacher ? "active" : "")"
+                            @onclick="@(() => CurrentRole = CourseRole.Teacher)">
+                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                        <span>استاد</span>
+                    </button>
+                </div>
+
+                <div class="lmscourse-hero-actions">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.ArrowBack"
+                               OnClick="GoBack">
+                        بازگشت
+                    </MudButton>
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@(CurrentRole == CourseRole.Student ? Icons.Material.Filled.PlayCircle : Icons.Material.Filled.Edit)">
+                        @(CurrentRole == CourseRole.Student ? "ادامه یادگیری" : "مدیریت درس")
+                    </MudButton>
+                </div>
+            </div>
+        </div>
+
+        <MudGrid Class="lmscourse-stats-grid">
+            <MudItem xs="6" md="3">
+                <div class="lmscourse-stat-card">
+                    <div class="icon primary">
+                        <MudIcon Icon="@Icons.Material.Filled.ViewModule" />
+                    </div>
+                    <div>
+                        <div class="value">@chapters.Count</div>
+                        <div class="label">فصل</div>
+                    </div>
+                </div>
+            </MudItem>
+
+            <MudItem xs="6" md="3">
+                <div class="lmscourse-stat-card">
+                    <div class="icon secondary">
+                        <MudIcon Icon="@Icons.Material.Filled.Slideshow" />
+                    </div>
+                    <div>
+                        <div class="value">@AllSessions.Count</div>
+                        <div class="label">جلسه</div>
+                    </div>
+                </div>
+            </MudItem>
+
+            <MudItem xs="6" md="3">
+                <div class="lmscourse-stat-card">
+                    <div class="icon info">
+                        <MudIcon Icon="@Icons.Material.Filled.VideoLibrary" />
+                    </div>
+                    <div>
+                        <div class="value">@videoFiles.Count</div>
+                        <div class="label">محتوای ویدئویی</div>
+                    </div>
+                </div>
+            </MudItem>
+
+            <MudItem xs="6" md="3">
+                <div class="lmscourse-stat-card">
+                    <div class="icon success">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" />
+                    </div>
+                    <div>
+                        <div class="value">@AverageProgress%</div>
+                        <div class="label">پیشرفت کلی</div>
+                    </div>
+                </div>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <!-- Main Shell -->
+    <MudPaper Class="lmscourse-shell" Elevation="0">
+        <MudTabs @bind-ActivePanelIndex="activeTab"
+                 Rounded="true"
+                 BorderBottom="true"
+                 Elevation="0"
+                 PanelClass="lmscourse-tab-panel">
+
+            <!-- Overview -->
+            <MudTabPanel Text="نمای کلی">
+                <MudGrid>
+                    <MudItem xs="12" lg="8">
+                        <MudPaper Class="lmscourse-card" Elevation="0">
+                            <div class="lmscourse-section-head">
+                                <div>
+                                    <MudText Typo="Typo.h6" Class="lmscourse-section-title">خلاصه درس</MudText>
+                                    <MudText Typo="Typo.body2" Class="lmscourse-section-subtitle">
+                                        اطلاعات کلی، ساختار آموزشی و وضعیت یادگیری
+                                    </MudText>
+                                </div>
+                            </div>
+
+                            <div class="lmscourse-info-grid">
+                                <div class="lmscourse-info-item">
+                                    <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" />
+                                    <div>
+                                        <div class="title">استاد درس</div>
+                                        <div class="value">@course.Teacher</div>
+                                    </div>
+                                </div>
+
+                                <div class="lmscourse-info-item">
+                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Primary" />
+                                    <div>
+                                        <div class="title">زمان برگزاری</div>
+                                        <div class="value">@course.Schedule</div>
+                                    </div>
+                                </div>
+
+                                <div class="lmscourse-info-item">
+                                    <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Primary" />
+                                    <div>
+                                        <div class="title">امتحان نهایی</div>
+                                        <div class="value">@course.ExamDate</div>
+                                    </div>
+                                </div>
+
+                                <div class="lmscourse-info-item">
+                                    <MudIcon Icon="@Icons.Material.Filled.Room" Color="Color.Primary" />
+                                    <div>
+                                        <div class="title">محل برگزاری</div>
+                                        <div class="value">@course.Location</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </MudPaper>
+
+                        <MudPaper Class="lmscourse-card mt-4" Elevation="0">
+                            <div class="lmscourse-section-head">
+                                <div>
+                                    <MudText Typo="Typo.h6" Class="lmscourse-section-title">مسیر آموزشی درس</MudText>
+                                    <MudText Typo="Typo.body2" Class="lmscourse-section-subtitle">
+                                        سرفصل‌ها، پیشرفت هر بخش و تعداد منابع مرتبط
+                                    </MudText>
+                                </div>
+                            </div>
+
+                            <div class="lmscourse-overview-modules">
+                                @foreach (var chapter in chapters)
+                                {
+                                    <div class="lmscourse-overview-module">
+                                        <div class="module-top">
+                                            <div>
+                                                <div class="module-title">@chapter.Title</div>
+                                                <div class="module-meta">
+                                                    @chapter.Sessions.Count جلسه •
+                                                    @GetChapterVideoCount(chapter.Id) ویدئو •
+                                                    @GetChapterDocumentCount(chapter.Id) فایل •
+                                                    @GetChapterAssignmentCount(chapter.Id) تکلیف •
+                                                    @GetChapterExamCount(chapter.Id) آزمون
+                                                </div>
+                                            </div>
+
+                                            <MudChip T="string"
+                                                     Size="Size.Small"
+                                                     Color="@GetProgressColor(chapter.Progress)"
+                                                     Variant="Variant.Outlined">
+                                                @chapter.Progress%
+                                            </MudChip>
+                                        </div>
+
+                                        <MudProgressLinear Value="@chapter.Progress"
+                                                           Rounded="true"
+                                                           Color="@GetProgressColor(chapter.Progress)"
+                                                           Class="mt-3" />
+                                    </div>
+                                }
+                            </div>
+                        </MudPaper>
+
+                        <MudPaper Class="lmscourse-card mt-4" Elevation="0">
+                            <div class="lmscourse-section-head">
+                                <div>
+                                    <MudText Typo="Typo.h6" Class="lmscourse-section-title">اطلاعیه‌های درس</MudText>
+                                    <MudText Typo="Typo.body2" Class="lmscourse-section-subtitle">
+                                        آخرین پیام‌ها و اطلاع‌رسانی‌های مربوط به این درس
+                                    </MudText>
+                                </div>
+
+                                @if (CurrentRole == CourseRole.Teacher)
+                                {
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+                                        اطلاعیه جدید
+                                    </MudButton>
+                                }
+                            </div>
+
+                            <div class="lmscourse-list">
+                                @foreach (var item in announcements)
+                                {
+                                    <div class="lmscourse-list-item">
+                                        <div class="list-icon success">
+                                            <MudIcon Icon="@Icons.Material.Filled.Campaign" Size="Size.Small" />
+                                        </div>
+                                        <div class="list-content">
+                                            <div class="list-title">@item.Title</div>
+                                            <div class="list-subtitle">@item.Description</div>
+                                            <div class="list-meta">@item.Date</div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" lg="4">
+                        <div class="lmscourse-side-stack">
+                            <MudPaper Class="lmscourse-card sticky-card" Elevation="0">
+                                <div class="lmscourse-section-head compact">
+                                    <MudText Typo="Typo.h6" Class="lmscourse-section-title">اقدام سریع</MudText>
+                                </div>
+
+                                <div class="lmscourse-action-stack">
+                                    @if (CurrentRole == CourseRole.Student)
+                                    {
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.PlayCircle">
+                                            ادامه از آخرین جلسه
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.Assignment">
+                                            مشاهده تکالیف
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" StartIcon="@Icons.Material.Filled.Quiz">
+                                            آزمون‌های من
+                                        </MudButton>
+                                    }
+                                    else
+                                    {
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.Add">
+                                            افزودن محتوا
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.Assignment">
+                                            ثبت تکلیف
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" StartIcon="@Icons.Material.Filled.Quiz">
+                                            آزمون‌ساز
+                                        </MudButton>
+                                    }
+
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Info"
+                                               FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.SmartToy"
+                                               OnClick="@(() => activeTab = 7)">
+                                        دستیار هوشمند
+                                    </MudButton>
+                                </div>
+                            </MudPaper>
+
+                            <MudPaper Class="lmscourse-card mt-4" Elevation="0">
+                                <div class="lmscourse-section-head compact">
+                                    <MudText Typo="Typo.h6" Class="lmscourse-section-title">ددلاین‌های نزدیک</MudText>
+                                </div>
+
+                                <div class="lmscourse-list">
+                                    @foreach (var item in deadlines)
+                                    {
+                                        <div class="lmscourse-list-item">
+                                            <div class="list-icon warning">
+                                                <MudIcon Icon="@item.Icon" Size="Size.Small" />
+                                            </div>
+                                            <div class="list-content">
+                                                <div class="list-title">@item.Title</div>
+                                                <div class="list-subtitle">@item.Reference</div>
+                                                <div class="list-meta">@item.DateText</div>
+                                            </div>
+                                            <MudChip T="string" Size="Size.Small" Color="@item.Color" Variant="Variant.Outlined">
+                                                @item.Type
+                                            </MudChip>
+                                        </div>
+                                    }
+                                </div>
+                            </MudPaper>
+
+                            <MudPaper Class="lmscourse-card mt-4" Elevation="0">
+                                <div class="lmscourse-section-head compact">
+                                    <MudText Typo="Typo.h6" Class="lmscourse-section-title">آخرین فعالیت‌ها</MudText>
+                                </div>
+
+                                <div class="lmscourse-list">
+                                    @foreach (var item in recentActivities)
+                                    {
+                                        <div class="lmscourse-list-item">
+                                            <div class="list-icon primary">
+                                                <MudIcon Icon="@item.Icon" Size="Size.Small" />
+                                            </div>
+                                            <div class="list-content">
+                                                <div class="list-title">@item.Title</div>
+                                                <div class="list-meta">@item.Meta</div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </MudPaper>
+                        </div>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+            <!-- Modules -->
+            <MudTabPanel Text="فصل‌ها و جلسات">
+                <MudPaper Class="lmscourse-card" Elevation="0">
+                    <div class="lmscourse-section-head">
+                        <div>
+                            <MudText Typo="Typo.h6" Class="lmscourse-section-title">ساختار ماژولی درس</MudText>
+                            <MudText Typo="Typo.body2" Class="lmscourse-section-subtitle">
+                                همه محتواها به تفکیک فصل و جلسه دسته‌بندی شده‌اند
+                            </MudText>
+                        </div>
+                    </div>
+
+                    <MudExpansionPanels>
+                        @foreach (var chapter in chapters)
+                        {
+                            <MudExpansionPanel Dense="true"
+                                               Elevation="0"
+                                               IsInitiallyExpanded="@(chapter == chapters.First())"
+                                               Class="lmscourse-expansion-panel">
+                                <TitleContent>
+                                    <div class="lmscourse-module-head">
+                                        <div>
+                                            <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@chapter.Title</MudText>
+                                            <div class="module-meta mt-1">
+                                                @chapter.Sessions.Count جلسه •
+                                                @GetChapterVideoCount(chapter.Id) ویدئو •
+                                                @GetChapterDocumentCount(chapter.Id) فایل •
+                                                @GetChapterAssignmentCount(chapter.Id) تکلیف •
+                                                @GetChapterExamCount(chapter.Id) آزمون
+                                            </div>
+                                        </div>
+
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Color="@GetProgressColor(chapter.Progress)">
+                                            @chapter.Progress%
+                                        </MudChip>
+                                    </div>
+                                </TitleContent>
+
+                                <ChildContent>
+                                    <div class="lmscourse-session-grid">
+                                        @foreach (var session in chapter.Sessions)
+                                        {
+                                            <div class="lmscourse-session-card">
+                                                <div class="session-head">
+                                                    <div>
+                                                        <div class="session-title">جلسه @session.SessionNumber - @session.Title</div>
+                                                        <div class="session-meta">@chapter.Title • @session.Duration دقیقه</div>
+                                                    </div>
+                                                    <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowForward">
+                                                        ورود
+                                                    </MudButton>
+                                                </div>
+
+                                                <div class="session-pills">
+                                                    @foreach (var item in GetSessionContentBadges(session.Id))
+                                                    {
+                                                        <span class="mini-pill">@item</span>
+                                                    }
+                                                </div>
+
+                                                <div class="session-inline-items">
+                                                    @foreach (var v in videoFiles.Where(x => x.SessionId == session.Id).Take(2))
+                                                    {
+                                                        <div class="inline-type video">🎬 @v.Title</div>
+                                                    }
+                                                    @foreach (var d in documentFiles.Where(x => x.SessionId == session.Id).Take(2))
+                                                    {
+                                                        <div class="inline-type doc">📄 @d.Title</div>
+                                                    }
+                                                    @foreach (var a in assignments.Where(x => x.SessionId == session.Id).Take(1))
+                                                    {
+                                                        <div class="inline-type assignment">📝 @a.Title</div>
+                                                    }
+                                                    @foreach (var e in exams.Where(x => x.SessionId == session.Id).Take(1))
+                                                    {
+                                                        <div class="inline-type exam">✅ @e.Title</div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </ChildContent>
+                            </MudExpansionPanel>
+                        }
+                    </MudExpansionPanels>
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- Content -->
+            <MudTabPanel Text="محتوا">
+                <MudPaper Class="lmscourse-card" Elevation="0">
+                    <div class="lmscourse-section-head">
+                        <div>
+                            <MudText Typo="Typo.h6" Class="lmscourse-section-title">مرور محتوا</MudText>
+                            <MudText Typo="Typo.body2" Class="lmscourse-section-subtitle">
+                                ویدئوها و فایل‌ها بر اساس فصل و جلسه قابل فیلتر هستند
+                            </MudText>
+                        </div>
+                    </div>
+
+                    <div class="lmscourse-filter-bar">
+                        <MudSelect T="int"
+                                   Label="فیلتر فصل"
+                                   Variant="Variant.Outlined"
+                                   Dense="true"
+                                   Value="@selectedChapterFilter"
+                                   ValueChanged="OnChapterFilterChanged"
+                                   Class="filter-select">
+                            <MudSelectItem T="int" Value="0">همه فصل‌ها</MudSelectItem>
+                            @foreach (var chapter in chapters)
+                            {
+                                <MudSelectItem T="int" Value="@chapter.Id">@chapter.Title</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudSelect T="int"
+                                   Label="فیلتر جلسه"
+                                   Variant="Variant.Outlined"
+                                   Dense="true"
+                                   Value="@selectedSessionFilter"
+                                   ValueChanged="OnSessionFilterChanged"
+                                   Class="filter-select">
+                            <MudSelectItem T="int" Value="0">همه جلسه‌ها</MudSelectItem>
+                            @foreach (var session in FilteredSessionsForSelector)
+                            {
+                                <MudSelectItem T="int" Value="@session.Id">جلسه @session.SessionNumber - @session.Title</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+
+                    <MudTabs @bind-ActivePanelIndex="contentTab"
+                             Rounded="true"
+                             BorderBottom="true"
+                             Elevation="0"
+                             PanelClass="pt-4">
+
+                        <MudTabPanel Text="ویدئویی">
+                            @if (FilteredVideoFiles.Any())
+                            {
+                                <div class="lmscourse-video-grid">
+                                    @foreach (var video in FilteredVideoFiles)
+                                    {
+                                        <div class="lmscourse-video-card">
+                                            <div class="video-cover">
+                                                @if (!string.IsNullOrWhiteSpace(video.Cover))
+                                                {
+                                                    <img src="@video.Cover" alt="@video.Title" />
+                                                }
+                                                else
+                                                {
+                                                    <div class="video-placeholder">
+                                                        <MudIcon Icon="@Icons.Material.Filled.PlayCircleFilled" Size="Size.Large" Color="Color.Primary" />
+                                                    </div>
+                                                }
+
+                                                <div class="video-overlay">
+                                                    <div class="video-duration">@video.DurationText</div>
+                                                    <div class="video-session-info">@video.ChapterTitle • جلسه @video.SessionNumber</div>
+                                                </div>
+                                            </div>
+
+                                            <div class="video-body">
+                                                <MudText Typo="Typo.subtitle2" Class="font-weight-bold">@video.Title</MudText>
+
+                                                <div class="session-pills mt-2">
+                                                    <span class="mini-pill">@video.ChapterTitle</span>
+                                                    <span class="mini-pill">جلسه @video.SessionNumber</span>
+                                                    <span class="mini-pill">@video.TeacherName</span>
+                                                </div>
+
+                                                <div class="video-actions">
+                                                    <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow">
+                                                        پخش
+                                                    </MudButton>
+                                                    <MudButton Variant="Variant.Text" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Visibility">
+                                                        جزئیات
+                                                    </MudButton>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                    محتوای ویدئویی برای این فیلتر یافت نشد.
+                                </MudAlert>
+                            }
+                        </MudTabPanel>
+
+                        <MudTabPanel Text="غیرویدئویی">
+                            @if (FilteredDocumentFiles.Any())
+                            {
+                                <div class="lmscourse-doc-list">
+                                    @foreach (var file in FilteredDocumentFiles)
+                                    {
+                                        <div class="lmscourse-doc-item">
+                                            <div class="doc-icon">
+                                                <MudIcon Icon="@GetFileIcon(file.FileType)" Size="Size.Medium" />
+                                            </div>
+
+                                            <div class="doc-content">
+                                                <div class="doc-title">@file.Title</div>
+                                                <div class="doc-meta">@file.ChapterTitle • جلسه @file.SessionNumber • @file.FileType</div>
+                                            </div>
+
+                                            <div class="doc-actions">
+                                                <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download">
+                                                    دانلود
+                                                </MudButton>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                    فایل غیر ویدئویی برای این فیلتر یافت نشد.
+                                </MudAlert>
+                            }
+                        </MudTabPanel>
+                    </MudTabs>
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- Assignments -->
+            <MudTabPanel Text="تکالیف">
+                <MudPaper Class="lmscourse-card" Elevation="0">
+                    <div class="lmscourse-section-head">
+                        <div>
+                            <MudText Typo="Typo.h6" Class="lmscourse-section-title">تکالیف درس</MudText>
+                            <MudText Typo="Typo.body2" Class="lmscourse-section-subtitle">
+                                هر تکلیف به فصل و جلسه مرتبط متصل شده است
+                            </MudText>
+                        </div>
+
+                        @if (CurrentRole == CourseRole.Teacher)
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+                                تکلیف جدید
+                            </MudButton>
+                        }
+                    </div>
+
+                    <div class="lmscourse-task-grid">
+                        @foreach (var item in assignments)
+                        {
+                            <div class="lmscourse-task-card assignment">
+                                <div class="task-head">
+                                    <div>
+                                        <div class="task-title">@item.Title</div>
+                                        <div class="task-meta">@item.ChapterTitle • جلسه @item.SessionNumber</div>
+                                    </div>
+
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Color="@GetAssignmentColor(item.Status)">
+                                        @item.Status
+                                    </MudChip>
+                                </div>
+
+                                <MudText Typo="Typo.body2" Class="mb-3">@item.Description</MudText>
+
+                                <div class="session-pills">
+                                    <span class="mini-pill">مهلت: @item.Deadline</span>
+                                    <span class="mini-pill">امتیاز: @item.Score</span>
+                                </div>
+
+                                <div class="task-actions">
+                                    @if (CurrentRole == CourseRole.Student)
+                                    {
+                                        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile">
+                                            ارسال پاسخ
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Visibility">
+                                            مشاهده
+                                        </MudButton>
+                                    }
+                                    else
+                                    {
+                                        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FactCheck">
+                                            بررسی پاسخ‌ها
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Edit">
+                                            ویرایش
+                                        </MudButton>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- Exams -->
+            <MudTabPanel Text="آزمون‌ها">
+                <MudPaper Class="lmscourse-card" Elevation="0">
+                    <div class="lmscourse-section-head">
+                        <div>
+                            <MudText Typo="Typo.h6" Class="lmscourse-section-title">آزمون‌ها و کوئیزها</MudText>
+                            <MudText Typo="Typo.body2" Class="lmscourse-section-subtitle">
+                                آزمون‌ها نیز به فصل و جلسه مشخص متصل شده‌اند
+                            </MudText>
+                        </div>
+
+                        @if (CurrentRole == CourseRole.Teacher)
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Quiz">
+                                آزمون‌ساز
+                            </MudButton>
+                        }
+                    </div>
+
+                    <div class="lmscourse-task-grid">
+                        @foreach (var exam in exams)
+                        {
+                            <div class="lmscourse-task-card exam">
+                                <div class="task-head">
+                                    <div>
+                                        <div class="task-title">@exam.Title</div>
+                                        <div class="task-meta">@exam.ChapterTitle • جلسه @exam.SessionNumber</div>
+                                    </div>
+
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Color="@GetExamColor(exam.Status)">
+                                        @exam.Status
+                                    </MudChip>
+                                </div>
+
+                                <MudText Typo="Typo.body2" Class="mb-3">@exam.Description</MudText>
+
+                                <div class="session-pills">
+                                    <span class="mini-pill">تاریخ: @exam.Date</span>
+                                    <span class="mini-pill">مدت: @exam.Duration دقیقه</span>
+                                    <span class="mini-pill">@exam.QuestionCount سوال</span>
+                                </div>
+
+                                <div class="task-actions">
+                                    @if (CurrentRole == CourseRole.Student)
+                                    {
+                                        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Quiz">
+                                            شروع آزمون
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Info">
+                                            جزئیات
+                                        </MudButton>
+                                    }
+                                    else
+                                    {
+                                        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Assessment">
+                                            نتایج
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Text" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Edit">
+                                            ویرایش
+                                        </MudButton>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- Grades -->
+            <MudTabPanel Text="نمرات">
+                <MudGrid>
+                    <MudItem xs="12" md="4">
+                        <MudPaper Class="lmscourse-card" Elevation="0">
+                            <div class="grade-summary-card">
+                                <div class="grade-big">@CurrentAverage</div>
+                                <div class="grade-label">میانگین فعلی</div>
+                                <MudProgressLinear Value="@CurrentAveragePercent"
+                                                   Rounded="true"
+                                                   Color="Color.Success"
+                                                   Class="mt-4" />
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudPaper Class="lmscourse-card" Elevation="0">
+                            <div class="grade-summary-card">
+                                <div class="grade-big">@gradedItems.Count</div>
+                                <div class="grade-label">ارزیابی ثبت‌شده</div>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                                    تکالیف و آزمون‌های نمره‌دار
+                                </MudText>
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudPaper Class="lmscourse-card" Elevation="0">
+                            <div class="grade-summary-card">
+                                <div class="grade-big">@PendingGradeCount</div>
+                                <div class="grade-label">در انتظار نمره</div>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                                    مواردی که هنوز ارزیابی نشده‌اند
+                                </MudText>
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudPaper Class="lmscourse-card mt-4" Elevation="0">
+                            <div class="lmscourse-section-head">
+                                <div>
+                                    <MudText Typo="Typo.h6" Class="lmscourse-section-title">ریز نمرات</MudText>
+                                    <MudText Typo="Typo.body2" Class="lmscourse-section-subtitle">
+                                        نمایش جزئیات ارزیابی به تفکیک نوع، فصل و جلسه
+                                    </MudText>
+                                </div>
+                            </div>
+
+                            <div class="lmscourse-grade-list">
+                                @foreach (var item in gradeItems)
+                                {
+                                    <div class="lmscourse-grade-row">
+                                        <div class="grade-main">
+                                            <div class="grade-title">@item.Title</div>
+                                            <div class="grade-meta">@item.Type • @item.ChapterTitle • جلسه @item.SessionNumber</div>
+                                        </div>
+
+                                        <div class="grade-score-box">
+                                            <div class="score">@item.ScoreText</div>
+                                            <MudChip T="string" Size="Size.Small" Color="@GetGradeStatusColor(item.Status)" Variant="Variant.Outlined">
+                                                @item.Status
+                                            </MudChip>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+            <!-- Discussions -->
+            <MudTabPanel Text="گفتگوها">
+                <MudPaper Class="lmscourse-card" Elevation="0">
+                    <div class="lmscourse-section-head">
+                        <div>
+                            <MudText Typo="Typo.h6" Class="lmscourse-section-title">تالار گفتگو</MudText>
+                            <MudText Typo="Typo.body2" Class="lmscourse-section-subtitle">
+                                سوال‌ها و گفتگوهای مرتبط با جلسه، تکلیف یا آزمون
+                            </MudText>
+                        </div>
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AddComment">
+                            سوال جدید
+                        </MudButton>
+                    </div>
+
+                    <div class="lmscourse-forum-list">
+                        @foreach (var topic in forumTopics)
+                        {
+                            <div class="lmscourse-forum-card">
+                                <div class="forum-head">
+                                    <div>
+                                        <div class="forum-title">@topic.Title</div>
+                                        <div class="forum-meta">@topic.ReferenceText</div>
+                                    </div>
+
+                                    <div class="forum-side">
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info">@topic.Replies پاسخ</MudChip>
+                                        <div class="forum-last">@topic.LastActivity</div>
+                                    </div>
+                                </div>
+
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">
+                                    @topic.Description
+                                </MudText>
+
+                                <div class="forum-footer">
+                                    <div class="session-pills">
+                                        <span class="mini-pill">@topic.Author</span>
+                                        <span class="mini-pill">@topic.Category</span>
+                                    </div>
+
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary">
+                                        مشاهده و پاسخ
+                                    </MudButton>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- Calendar -->
+            <MudTabPanel Text="تقویم">
+                <MudPaper Class="lmscourse-card" Elevation="0">
+                    <div class="lmscourse-section-head">
+                        <div>
+                            <MudText Typo="Typo.h6" Class="lmscourse-section-title">تقویم فعالیت‌ها</MudText>
+                            <MudText Typo="Typo.body2" Class="lmscourse-section-subtitle">
+                                همه رویدادهای مهم درس در یک نمای زمانی
+                            </MudText>
+                        </div>
+                    </div>
+
+                    <div class="lmscourse-timeline">
+                        @foreach (var item in timelineItems)
+                        {
+                            <div class="timeline-row">
+                                <div class="timeline-date">@item.DateText</div>
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-card">
+                                    <div class="timeline-title">@item.Title</div>
+                                    <div class="timeline-meta">@item.Reference</div>
+                                    <div class="timeline-type">@item.Type</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- AI -->
+            <MudTabPanel Text="هوش مصنوعی">
+                <MudGrid>
+                    <MudItem xs="12" lg="4">
+                        <MudPaper Class="lmscourse-card ai-side-card" Elevation="0">
+                            <div class="lmscourse-section-head compact">
+                                <MudText Typo="Typo.h6" Class="lmscourse-section-title">دستیار هوشمند درس</MudText>
+                            </div>
+
+                            <MudText Typo="Typo.body2" Class="mb-4">
+                                می‌توانید از هوش مصنوعی برای جمع‌بندی جلسات، برنامه مطالعه، آمادگی آزمون و توضیح مفاهیم کمک بگیرید.
+                            </MudText>
+
+                            <div class="lmscourse-action-stack">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" OnClick="AskForSummary">
+                                    خلاصه درس
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" OnClick="AskForStudyPlan">
+                                    برنامه مطالعه
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" OnClick="AskForExamPrep">
+                                    آمادگی آزمون
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true" OnClick="AskForAssignmentsHelp">
+                                    کمک برای تکلیف
+                                </MudButton>
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" lg="8">
+                        <MudPaper Class="lmscourse-card ai-chat-card" Elevation="0">
+                            <div class="lmscourse-section-head compact">
+                                <MudText Typo="Typo.h6" Class="lmscourse-section-title">چت‌بات آموزشی</MudText>
+                                @if (aiLoading)
+                                {
+                                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                }
+                            </div>
+
+                            <div class="lmscourse-chat-box">
+                                @foreach (var msg in aiMessages)
+                                {
+                                    <div class="chat-row @(msg.IsUser ? "user" : "bot")">
+                                        <div class="chat-bubble">
+                                            @msg.Text
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="lmscourse-chat-input">
+                                <MudTextField T="string"
+                                              FullWidth="true"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Placeholder="سوال خود را درباره درس بنویسید..."
+                                              Value="@aiPrompt"
+                                              ValueChanged="OnAiPromptChanged" />
+
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Send"
+                                           OnClick="SendAiMessage">
+                                    ارسال
+                                </MudButton>
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+        </MudTabs>
+    </MudPaper>
+</div>
+
+@code {
+    [Parameter] public int CourseId { get; set; }
+
+    private int activeTab = 0;
+    private int contentTab = 0;
+    private int selectedChapterFilter = 0;
+    private int selectedSessionFilter = 0;
+
+    private string aiPrompt = string.Empty;
+    private bool aiLoading = false;
+
+    private CourseRole CurrentRole = CourseRole.Student;
+
+    private CourseDetailModel course = new();
+    private List<ChapterModel> chapters = new();
+    private List<VideoFileModel> videoFiles = new();
+    private List<DocumentFileModel> documentFiles = new();
+    private List<AssignmentModel> assignments = new();
+    private List<ExamModel> exams = new();
+    private List<AnnouncementModel> announcements = new();
+    private List<GradeItemModel> gradeItems = new();
+    private List<ForumTopicModel> forumTopics = new();
+    private List<DeadlineModel> deadlines = new();
+    private List<TimelineItemModel> timelineItems = new();
+    private List<ActivityModel> recentActivities = new();
+    private List<AiMessageModel> aiMessages = new();
+
+    private List<SessionModel> AllSessions => chapters.SelectMany(x => x.Sessions).ToList();
+
+    private IEnumerable<SessionModel> FilteredSessionsForSelector =>
+        selectedChapterFilter == 0
+            ? AllSessions
+            : chapters.FirstOrDefault(x => x.Id == selectedChapterFilter)?.Sessions ?? new List<SessionModel>();
+
+    private IEnumerable<VideoFileModel> FilteredVideoFiles =>
+        videoFiles.Where(MatchesContentFilter);
+
+    private IEnumerable<DocumentFileModel> FilteredDocumentFiles =>
+        documentFiles.Where(MatchesContentFilter);
+
+    private List<GradeItemModel> gradedItems =>
+        gradeItems.Where(x => x.Score.HasValue).ToList();
+
+    private int PendingGradeCount =>
+        gradeItems.Count(x => !x.Score.HasValue);
+
+    private int AverageProgress =>
+        chapters.Any() ? (int)Math.Round(chapters.Average(x => x.Progress)) : 0;
+
+    private double CurrentAverage =>
+        gradedItems.Any() ? Math.Round(gradedItems.Average(x => x.Score ?? 0), 2) : 0;
+
+    private double CurrentAveragePercent =>
+        CurrentAverage * 5;
+
+    protected override Task OnInitializedAsync()
+    {
+        LoadCourse();
+        LoadStructure();
+        LoadContents();
+        LoadAssignments();
+        LoadExams();
+        LoadAnnouncements();
+        LoadGrades();
+        LoadForumTopics();
+        LoadDeadlines();
+        LoadTimeline();
+        LoadActivities();
+        SeedAi();
+        return Task.CompletedTask;
+    }
+
+    private void LoadCourse()
+    {
+        course = new CourseDetailModel
+        {
+            Id = CourseId,
+            Name = "برنامه‌سازی پیشرفته",
+            Code = "CS-401",
+            Group = "1",
+            Faculty = "دانشکده مهندسی کامپیوتر",
+            Teacher = "دکتر احمدی",
+            Schedule = "شنبه 10:00 - 12:00",
+            ExamDate = "1403/12/15",
+            Location = "سالن شماره 3",
+            Units = 3,
+            Description = "این درس شامل شیءگرایی، الگوهای طراحی، ساختار پروژه، مدیریت خطا، برنامه‌نویسی ناهمگام و تحلیل کد تمیز است."
+        };
+    }
+
+    private void LoadStructure()
+    {
+        chapters = new List<ChapterModel>
+        {
+            new()
+            {
+                Id = 1,
+                Title = "مرور مفاهیم شیءگرایی",
+                Progress = 82,
+                Sessions = new List<SessionModel>
+                {
+                    new() { Id = 1, SessionNumber = 1, Title = "کلاس، شیء و کپسوله‌سازی", Duration = 90 },
+                    new() { Id = 2, SessionNumber = 2, Title = "وراثت، چندریختی و Interface", Duration = 95 }
+                }
+            },
+            new()
+            {
+                Id = 2,
+                Title = "الگوهای طراحی",
+                Progress = 63,
+                Sessions = new List<SessionModel>
+                {
+                    new() { Id = 3, SessionNumber = 3, Title = "مقدمه و الگوهای Creational", Duration = 100 },
+                    new() { Id = 4, SessionNumber = 4, Title = "الگوهای Structural و Behavioral", Duration = 105 }
+                }
+            },
+            new()
+            {
+                Id = 3,
+                Title = "Async/Await و مدیریت خطا",
+                Progress = 38,
+                Sessions = new List<SessionModel>
+                {
+                    new() { Id = 5, SessionNumber = 5, Title = "Task ،Async و Await", Duration = 100 },
+                    new() { Id = 6, SessionNumber = 6, Title = "Exception Handling و Logging", Duration = 90 }
+                }
+            }
+        };
+    }
+
+    private void LoadContents()
+    {
+        videoFiles = new List<VideoFileModel>
+        {
+            new() { Id = 1, Title = "ویدئوی جلسه 1 - مفاهیم پایه OOP", ChapterId = 1, ChapterTitle = "مرور مفاهیم شیءگرایی", SessionId = 1, SessionNumber = 1, DurationText = "18:24", TeacherName = "دکتر احمدی", Cover = "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80" },
+            new() { Id = 2, Title = "ویدئوی جلسه 2 - وراثت و Interface", ChapterId = 1, ChapterTitle = "مرور مفاهیم شیءگرایی", SessionId = 2, SessionNumber = 2, DurationText = "24:10", TeacherName = "دکتر احمدی", Cover = "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=900&q=80" },
+            new() { Id = 3, Title = "ویدئوی جلسه 3 - Design Pattern", ChapterId = 2, ChapterTitle = "الگوهای طراحی", SessionId = 3, SessionNumber = 3, DurationText = "20:42", TeacherName = "دکتر احمدی", Cover = "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=900&q=80" },
+            new() { Id = 4, Title = "ویدئوی جلسه 4 - Structural Patterns", ChapterId = 2, ChapterTitle = "الگوهای طراحی", SessionId = 4, SessionNumber = 4, DurationText = "21:05", TeacherName = "دکتر احمدی", Cover = "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=80" },
+            new() { Id = 5, Title = "ویدئوی جلسه 5 - Async/Await", ChapterId = 3, ChapterTitle = "Async/Await و مدیریت خطا", SessionId = 5, SessionNumber = 5, DurationText = "17:55", TeacherName = "دکتر احمدی", Cover = "https://images.unsplash.com/photo-1516116216624-53e697fedbea?auto=format&fit=crop&w=900&q=80" }
+        };
+
+        documentFiles = new List<DocumentFileModel>
+        {
+            new() { Id = 1, Title = "اسلاید جلسه 1", ChapterId = 1, ChapterTitle = "مرور مفاهیم شیءگرایی", SessionId = 1, SessionNumber = 1, FileType = "PDF" },
+            new() { Id = 2, Title = "جزوه جلسه 2 - Interface", ChapterId = 1, ChapterTitle = "مرور مفاهیم شیءگرایی", SessionId = 2, SessionNumber = 2, FileType = "DOCX" },
+            new() { Id = 3, Title = "نمونه کد Factory Pattern", ChapterId = 2, ChapterTitle = "الگوهای طراحی", SessionId = 3, SessionNumber = 3, FileType = "ZIP" },
+            new() { Id = 4, Title = "اسلاید جلسه 4", ChapterId = 2, ChapterTitle = "الگوهای طراحی", SessionId = 4, SessionNumber = 4, FileType = "PDF" },
+            new() { Id = 5, Title = "تمرین حل‌شده Async", ChapterId = 3, ChapterTitle = "Async/Await و مدیریت خطا", SessionId = 5, SessionNumber = 5, FileType = "PDF" },
+            new() { Id = 6, Title = "راهنمای Exception Handling", ChapterId = 3, ChapterTitle = "Async/Await و مدیریت خطا", SessionId = 6, SessionNumber = 6, FileType = "DOCX" }
+        };
+    }
+
+    private void LoadAssignments()
+    {
+        assignments = new List<AssignmentModel>
+        {
+            new() { Id = 1, Title = "تمرین شیءگرایی", Description = "یک سیستم ساده مدیریت دانشجو با استفاده از کلاس، وراثت و Interface پیاده‌سازی کنید.", ChapterId = 1, ChapterTitle = "مرور مفاهیم شیءگرایی", SessionId = 2, SessionNumber = 2, Deadline = "1403/09/25", Score = 20, Status = "در انتظار تحویل" },
+            new() { Id = 2, Title = "پیاده‌سازی Factory Pattern", Description = "برای یک سناریوی واقعی، Factory Method را طراحی و مستندسازی کنید.", ChapterId = 2, ChapterTitle = "الگوهای طراحی", SessionId = 3, SessionNumber = 3, Deadline = "1403/10/05", Score = 25, Status = "فعال" },
+            new() { Id = 3, Title = "تمرین Async/Await", Description = "یک سرویس خواندن داده ناهمگام با مدیریت خطا طراحی کنید.", ChapterId = 3, ChapterTitle = "Async/Await و مدیریت خطا", SessionId = 5, SessionNumber = 5, Deadline = "1403/10/12", Score = 20, Status = "جدید" }
+        };
+    }
+
+    private void LoadExams()
+    {
+        exams = new List<ExamModel>
+        {
+            new() { Id = 1, Title = "کوئیز فصل اول", Description = "ارزیابی مفاهیم پایه OOP و Interface", ChapterId = 1, ChapterTitle = "مرور مفاهیم شیءگرایی", SessionId = 2, SessionNumber = 2, Duration = 15, Date = "1403/09/28", QuestionCount = 10, Status = "برگزار شده" },
+            new() { Id = 2, Title = "آزمون الگوهای طراحی", Description = "سوالات تشریحی و چندگزینه‌ای درباره Design Pattern", ChapterId = 2, ChapterTitle = "الگوهای طراحی", SessionId = 4, SessionNumber = 4, Duration = 20, Date = "1403/10/10", QuestionCount = 12, Status = "فعال" },
+            new() { Id = 3, Title = "کوئیز Async/Await", Description = "سنجش درک برنامه‌نویسی ناهمگام و مدیریت استثنا", ChapterId = 3, ChapterTitle = "Async/Await و مدیریت خطا", SessionId = 5, SessionNumber = 5, Duration = 10, Date = "1403/10/18", QuestionCount = 8, Status = "آتی" }
+        };
+    }
+
+    private void LoadAnnouncements()
+    {
+        announcements = new List<AnnouncementModel>
+        {
+            new() { Title = "بارگذاری ویدئوی جدید", Description = "ویدئوی جلسه 5 مربوط به Async/Await منتشر شد.", Date = "امروز" },
+            new() { Title = "تمدید مهلت تکلیف", Description = "مهلت تمرین Factory Pattern تا 2 روز دیگر تمدید شد.", Date = "دیروز" },
+            new() { Title = "نمونه سوال اضافه شد", Description = "نمونه سوال جدید برای آزمون فصل دوم در بخش فایل‌ها قرار گرفت.", Date = "3 روز پیش" }
+        };
+    }
+
+    private void LoadGrades()
+    {
+        gradeItems = new List<GradeItemModel>
+        {
+            new() { Title = "تمرین شیءگرایی", Type = "تکلیف", ChapterTitle = "مرور مفاهیم شیءگرایی", SessionNumber = 2, Score = 18.5, MaxScore = 20, Status = "ثبت شده" },
+            new() { Title = "کوئیز فصل اول", Type = "آزمون", ChapterTitle = "مرور مفاهیم شیءگرایی", SessionNumber = 2, Score = 16, MaxScore = 20, Status = "ثبت شده" },
+            new() { Title = "Factory Pattern", Type = "تکلیف", ChapterTitle = "الگوهای طراحی", SessionNumber = 3, Score = null, MaxScore = 25, Status = "در انتظار" },
+            new() { Title = "آزمون الگوهای طراحی", Type = "آزمون", ChapterTitle = "الگوهای طراحی", SessionNumber = 4, Score = null, MaxScore = 20, Status = "در انتظار" }
+        };
+    }
+
+    private void LoadForumTopics()
+    {
+        forumTopics = new List<ForumTopicModel>
+        {
+            new() { Title = "سوال درباره Interface", Description = "تفاوت Interface و Abstract Class در این تمرین دقیقاً از چه زاویه‌ای مدنظر استاد است؟", Author = "علی رضایی", Category = "جلسه 2", Replies = 4, LastActivity = "2 ساعت پیش", ReferenceText = "مرور مفاهیم شیءگرایی • جلسه 2" },
+            new() { Title = "ابهام در Factory Method", Description = "برای پروژه این فصل، آیا Factory Method بهتر است یا Abstract Factory؟", Author = "مریم کریمی", Category = "تکلیف", Replies = 6, LastActivity = "دیروز", ReferenceText = "الگوهای طراحی • جلسه 3" },
+            new() { Title = "رفتار await در exception", Description = "در صورت خطا داخل Task، بهترین روش ثبت لاگ و نمایش خطا چیست؟", Author = "سعید محمدی", Category = "جلسه 5", Replies = 3, LastActivity = "3 روز پیش", ReferenceText = "Async/Await و مدیریت خطا • جلسه 5" }
+        };
+    }
+
+    private void LoadDeadlines()
+    {
+        deadlines = new List<DeadlineModel>
+        {
+            new() { Title = "تمرین شیءگرایی", Reference = "مرور مفاهیم شیءگرایی • جلسه 2", DateText = "25 آذر 1403", Type = "تکلیف", Icon = Icons.Material.Filled.Assignment, Color = Color.Warning },
+            new() { Title = "آزمون الگوهای طراحی", Reference = "الگوهای طراحی • جلسه 4", DateText = "10 دی 1403", Type = "آزمون", Icon = Icons.Material.Filled.Quiz, Color = Color.Info },
+            new() { Title = "تمرین Async/Await", Reference = "Async/Await • جلسه 5", DateText = "12 دی 1403", Type = "تکلیف", Icon = Icons.Material.Filled.Task, Color = Color.Primary }
+        };
+    }
+
+    private void LoadTimeline()
+    {
+        timelineItems = new List<TimelineItemModel>
+        {
+            new() { DateText = "20 آذر 1403", Title = "جلسه 5 برگزار می‌شود", Reference = "Async/Await و مدیریت خطا • جلسه 5", Type = "کلاس" },
+            new() { DateText = "25 آذر 1403", Title = "مهلت تحویل تمرین شیءگرایی", Reference = "مرور مفاهیم شیءگرایی • جلسه 2", Type = "تکلیف" },
+            new() { DateText = "10 دی 1403", Title = "آزمون الگوهای طراحی", Reference = "الگوهای طراحی • جلسه 4", Type = "آزمون" },
+            new() { DateText = "12 دی 1403", Title = "مهلت تمرین Async/Await", Reference = "Async/Await • جلسه 5", Type = "تکلیف" },
+            new() { DateText = "15 اسفند 1403", Title = "امتحان پایان‌ترم", Reference = course.Location, Type = "نهایی" }
+        };
+    }
+
+    private void LoadActivities()
+    {
+        recentActivities = new List<ActivityModel>
+        {
+            new() { Title = "ویدئوی جلسه 5 منتشر شد", Meta = "Async/Await • امروز", Icon = Icons.Material.Filled.PlayCircle },
+            new() { Title = "فایل PDF جدید اضافه شد", Meta = "اسلاید جلسه 4 • دیروز", Icon = Icons.Material.Filled.InsertDriveFile },
+            new() { Title = "اطلاعیه جدید ثبت شد", Meta = "تمدید مهلت تکلیف • 2 روز پیش", Icon = Icons.Material.Filled.Campaign }
+        };
+    }
+
+    private void SeedAi()
+    {
+        aiMessages = new List<AiMessageModel>
+        {
+            new() { IsUser = false, Text = "سلام! من دستیار هوشمند این درس هستم. می‌توانم خلاصه جلسات، برنامه مطالعه، آمادگی آزمون یا توضیح مفاهیم را برای شما آماده کنم." }
+        };
+    }
+
+    private void GoBack()
+    {
+        NavManager.NavigateTo("/");
+    }
+
+    private void OnChapterFilterChanged(int value)
+    {
+        selectedChapterFilter = value;
+        selectedSessionFilter = 0;
+    }
+
+    private void OnSessionFilterChanged(int value)
+    {
+        selectedSessionFilter = value;
+    }
+
+    private bool MatchesContentFilter(VideoFileModel item)
+    {
+        var chapterMatch = selectedChapterFilter == 0 || item.ChapterId == selectedChapterFilter;
+        var sessionMatch = selectedSessionFilter == 0 || item.SessionId == selectedSessionFilter;
+        return chapterMatch && sessionMatch;
+    }
+
+    private bool MatchesContentFilter(DocumentFileModel item)
+    {
+        var chapterMatch = selectedChapterFilter == 0 || item.ChapterId == selectedChapterFilter;
+        var sessionMatch = selectedSessionFilter == 0 || item.SessionId == selectedSessionFilter;
+        return chapterMatch && sessionMatch;
+    }
+
+    private int GetChapterVideoCount(int chapterId) =>
+        videoFiles.Count(x => x.ChapterId == chapterId);
+
+    private int GetChapterDocumentCount(int chapterId) =>
+        documentFiles.Count(x => x.ChapterId == chapterId);
+
+    private int GetChapterAssignmentCount(int chapterId) =>
+        assignments.Count(x => x.ChapterId == chapterId);
+
+    private int GetChapterExamCount(int chapterId) =>
+        exams.Count(x => x.ChapterId == chapterId);
+
+    private List<string> GetSessionContentBadges(int sessionId)
+    {
+        var result = new List<string>();
+
+        var videoCount = videoFiles.Count(x => x.SessionId == sessionId);
+        var docCount = documentFiles.Count(x => x.SessionId == sessionId);
+        var assignmentCount = assignments.Count(x => x.SessionId == sessionId);
+        var examCount = exams.Count(x => x.SessionId == sessionId);
+
+        if (videoCount > 0) result.Add($"{videoCount} ویدئو");
+        if (docCount > 0) result.Add($"{docCount} فایل");
+        if (assignmentCount > 0) result.Add($"{assignmentCount} تکلیف");
+        if (examCount > 0) result.Add($"{examCount} آزمون");
+
+        return result;
+    }
+
+    private Color GetProgressColor(int progress)
+    {
+        return progress switch
+        {
+            (< 40) => Color.Error,
+            < 70 => Color.Warning,
+            _ => Color.Success
+        };
+    }
+
+    private Color GetAssignmentColor(string status)
+    {
+        return status switch
+        {
+            "در انتظار تحویل" => Color.Warning,
+            "فعال" => Color.Info,
+            "جدید" => Color.Primary,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetExamColor(string status)
+    {
+        return status switch
+        {
+            "برگزار شده" => Color.Success,
+            "فعال" => Color.Warning,
+            "آتی" => Color.Info,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetGradeStatusColor(string status)
+    {
+        return status switch
+        {
+            "ثبت شده" => Color.Success,
+            "در انتظار" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+
+    private string GetFileIcon(string type)
+    {
+        return type switch
+        {
+            "PDF" => Icons.Material.Filled.PictureAsPdf,
+            "DOCX" => Icons.Material.Filled.Description,
+            "ZIP" => Icons.Material.Filled.FolderZip,
+            _ => Icons.Material.Filled.InsertDriveFile
+        };
+    }
+
+    private void OnAiPromptChanged(string value)
+    {
+        aiPrompt = value;
+    }
+
+    private async Task SendAiMessage()
+    {
+        if (string.IsNullOrWhiteSpace(aiPrompt))
+            return;
+
+        var userText = aiPrompt.Trim();
+
+        aiMessages.Add(new AiMessageModel
+        {
+            IsUser = true,
+            Text = userText
+        });
+
+        aiPrompt = string.Empty;
+        aiLoading = true;
+        StateHasChanged();
+
+        await Task.Delay(600);
+
+        aiMessages.Add(new AiMessageModel
+        {
+            IsUser = false,
+            Text = BuildAiAnswer(userText)
+        });
+
+        aiLoading = false;
+    }
+
+    private string BuildAiAnswer(string prompt)
+    {
+        return $"برای موضوع «{prompt}» پیشنهاد می‌کنم ابتدا جلسه‌های مرتبط را در تب «فصل‌ها و جلسات» مرور کنید، سپس ویدئو و فایل همان جلسه را ببینید و در پایان تکلیف یا آزمون مرتبط را حل کنید. اگر بخواهید، می‌توانم همین موضوع را به صورت خلاصه، برنامه مطالعه یا نکات امتحانی هم بازنویسی کنم.";
+    }
+
+    private async Task AskForSummary()
+    {
+        await AddQuickAiExchange(
+            "خلاصه این درس را بده.",
+            "این درس در سه محور اصلی پیش می‌رود: شیءگرایی، الگوهای طراحی و برنامه‌نویسی ناهمگام. برای جمع‌بندی، ابتدا فصل اول را به عنوان پایه، سپس فصل دوم را برای طراحی درست و در نهایت فصل سوم را برای اجرای حرفه‌ای‌تر مرور کنید.");
+    }
+
+    private async Task AskForStudyPlan()
+    {
+        await AddQuickAiExchange(
+            "یک برنامه مطالعه برای این درس بده.",
+            "برنامه پیشنهادی: روز اول فصل شیءگرایی، روز دوم الگوهای طراحی، روز سوم Async/Await، روز چهارم مرور PDFها و روز پنجم حل تکالیف و آزمون‌های قبلی.");
+    }
+
+    private async Task AskForExamPrep()
+    {
+        await AddQuickAiExchange(
+            "برای آزمون این درس آماده‌ام کن.",
+            "برای آمادگی آزمون، جلسه‌های 2، 3، 4 و 5 را در اولویت قرار دهید. سپس فایل‌های PDF مربوط را بخوانید و روی تکلیف Factory Pattern و تمرین Async/Await تمرکز کنید.");
+    }
+
+    private async Task AskForAssignmentsHelp()
+    {
+        await AddQuickAiExchange(
+            "برای انجام تکالیف این درس کمک می‌خواهم.",
+            "برای تکالیف این درس بهتر است ابتدا مثال‌های هر جلسه را دقیق مرور کنید، سپس ساختار پاسخ را به بخش‌های تعریف مسئله، طراحی، پیاده‌سازی و نتیجه تقسیم کنید.");
+    }
+
+    private async Task AddQuickAiExchange(string userText, string botText)
+    {
+        aiMessages.Add(new AiMessageModel { IsUser = true, Text = userText });
+        aiLoading = true;
+        StateHasChanged();
+
+        await Task.Delay(500);
+
+        aiMessages.Add(new AiMessageModel { IsUser = false, Text = botText });
+        aiLoading = false;
+    }
+
+    public enum CourseRole
+    {
+        Student,
+        Teacher
+    }
+
+    public class CourseDetailModel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public string Group { get; set; } = string.Empty;
+        public string Faculty { get; set; } = string.Empty;
+        public string Teacher { get; set; } = string.Empty;
+        public string Schedule { get; set; } = string.Empty;
+        public string ExamDate { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
+        public int Units { get; set; }
+        public string Description { get; set; } = string.Empty;
+    }
+
+    public class ChapterModel
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public int Progress { get; set; }
+        public List<SessionModel> Sessions { get; set; } = new();
+    }
+
+    public class SessionModel
+    {
+        public int Id { get; set; }
+        public int SessionNumber { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public int Duration { get; set; }
+    }
+
+    public class VideoFileModel
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public int ChapterId { get; set; }
+        public string ChapterTitle { get; set; } = string.Empty;
+        public int SessionId { get; set; }
+        public int SessionNumber { get; set; }
+        public string DurationText { get; set; } = string.Empty;
+        public string TeacherName { get; set; } = string.Empty;
+        public string? Cover { get; set; }
+    }
+
+    public class DocumentFileModel
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public int ChapterId { get; set; }
+        public string ChapterTitle { get; set; } = string.Empty;
+        public int SessionId { get; set; }
+        public int SessionNumber { get; set; }
+        public string FileType { get; set; } = string.Empty;
+    }
+
+    public class AssignmentModel
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int ChapterId { get; set; }
+        public string ChapterTitle { get; set; } = string.Empty;
+        public int SessionId { get; set; }
+        public int SessionNumber { get; set; }
+        public string Deadline { get; set; } = string.Empty;
+        public int Score { get; set; }
+        public string Status { get; set; } = string.Empty;
+    }
+
+    public class ExamModel
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int ChapterId { get; set; }
+        public string ChapterTitle { get; set; } = string.Empty;
+        public int SessionId { get; set; }
+        public int SessionNumber { get; set; }
+        public int Duration { get; set; }
+        public string Date { get; set; } = string.Empty;
+        public int QuestionCount { get; set; }
+        public string Status { get; set; } = string.Empty;
+    }
+
+    public class AnnouncementModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Date { get; set; } = string.Empty;
+    }
+
+    public class GradeItemModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public string ChapterTitle { get; set; } = string.Empty;
+        public int SessionNumber { get; set; }
+        public double? Score { get; set; }
+        public double MaxScore { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string ScoreText => Score.HasValue ? $"{Score} / {MaxScore}" : $"-- / {MaxScore}";
+    }
+
+    public class ForumTopicModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Author { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public int Replies { get; set; }
+        public string LastActivity { get; set; } = string.Empty;
+        public string ReferenceText { get; set; } = string.Empty;
+    }
+
+    public class DeadlineModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Reference { get; set; } = string.Empty;
+        public string DateText { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
+        public Color Color { get; set; }
+    }
+
+    public class TimelineItemModel
+    {
+        public string DateText { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Reference { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+    }
+
+    public class ActivityModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Meta { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
+    }
+
+    public class AiMessageModel
+    {
+        public bool IsUser { get; set; }
+        public string Text { get; set; } = string.Empty;
+    }
+}

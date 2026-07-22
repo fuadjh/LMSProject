@@ -1,0 +1,81 @@
+﻿@typeparam TItem
+@using MudBlazor
+
+<MudTable Items="Items"
+          Dense="true"
+          Hover="true"
+          Striped="true"
+          Bordered="true"
+          Loading="Loading"
+          Breakpoint="Breakpoint.Sm">
+
+    <HeaderContent>
+        @HeaderColumns
+        <MudTh Class="text-end">عملیات</MudTh>
+    </HeaderContent>
+
+    <RowTemplate>
+        @RowColumns(context)
+
+        <MudTd DataLabel="عملیات" Class="text-end">
+            @if (OnEdit.HasDelegate)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               OnClick="@(() => OnEdit.InvokeAsync(context))" />
+            }
+
+            @if (OnDelete.HasDelegate)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                               Color="Color.Error"
+                               Size="Size.Small"
+                               OnClick="@(() => OnDelete.InvokeAsync(context))" />
+            }
+
+            @if (IsActive is not null)
+            {
+                var active = IsActive(context);
+
+                if (active && OnDeactivate.HasDelegate)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.ToggleOff"
+                                   Color="Color.Warning"
+                                   Size="Size.Small"
+                                   OnClick="@(() => OnDeactivate.InvokeAsync(context))" />
+                }
+                else if (!active && OnActivate.HasDelegate)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.ToggleOn"
+                                   Color="Color.Success"
+                                   Size="Size.Small"
+                                   OnClick="@(() => OnActivate.InvokeAsync(context))" />
+                }
+            }
+        </MudTd>
+    </RowTemplate>
+
+    <LoadingContent>
+        <MudText Class="pa-4">در حال بارگذاری...</MudText>
+    </LoadingContent>
+
+    <NoRecordsContent>
+        <MudText Class="pa-4">رکوردی برای نمایش وجود ندارد.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [Parameter] public IEnumerable<TItem> Items { get; set; } = Array.Empty<TItem>();
+    [Parameter] public bool Loading { get; set; }
+
+    [Parameter, EditorRequired] public RenderFragment HeaderColumns { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment<TItem> RowColumns { get; set; } = default!;
+
+    [Parameter] public EventCallback<TItem> OnEdit { get; set; }
+    [Parameter] public EventCallback<TItem> OnDelete { get; set; }
+    [Parameter] public EventCallback<TItem> OnActivate { get; set; }
+    [Parameter] public EventCallback<TItem> OnDeactivate { get; set; }
+
+    [Parameter] public Func<TItem, bool>? IsActive { get; set; }
+}

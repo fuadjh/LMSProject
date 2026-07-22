@@ -1,0 +1,96 @@
+@page "/admin/academic/semesters"
+@using Microsoft.AspNetCore.Authorization
+@using Common.Security
+@* @attribute [Authorize(Policy = Permissions.Semesters.Manage)] *@
+@using System.Net.Http.Json
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>نیمسال‌ها</PageTitle>
+
+<MudPaper Class="pa-4">
+    <MudText Typo="Typo.h5">تعریف نیمسال</MudText>
+
+    <MudGrid Class="mt-2">
+        <MudItem xs="12" md="4">
+            <MudTextField @bind-Value="_model.Title" Label="عنوان نیمسال" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudDatePicker @bind-Date="_startDate" Label="تاریخ شروع" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudDatePicker @bind-Date="_endDate" Label="تاریخ پایان" Variant="Variant.Outlined" />
+        </MudItem>
+    </MudGrid>
+
+    <MudButton Class="mt-4" Color="Color.Primary" Variant="Variant.Filled" OnClick="CreateAsync">
+        ثبت نیمسال
+    </MudButton>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4">
+    <MudText Typo="Typo.h6">لیست نیمسال‌ها</MudText>
+    <MudButton Class="mt-2" OnClick="LoadAsync">بارگذاری</MudButton>
+
+    <MudTable Items="_items" Dense="true" Hover="true" Class="mt-3">
+        <HeaderContent>
+            <MudTh>عنوان</MudTh>
+            <MudTh>شروع</MudTh>
+            <MudTh>پایان</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Title</MudTd>
+            <MudTd>@context.StartsAtUtc.ToShortDateString()</MudTd>
+            <MudTd>@context.EndsAtUtc.ToShortDateString()</MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private SemesterVm _model = new();
+    private DateTime? _startDate = DateTime.Today;
+    private DateTime? _endDate = DateTime.Today.AddMonths(4);
+    private List<SemesterVm> _items = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _items = await Http.GetFromJsonAsync<List<SemesterVm>>("api/semesters") ?? new();
+    }
+
+    private async Task CreateAsync()
+    {
+        if (!_startDate.HasValue || !_endDate.HasValue)
+        {
+            Snackbar.Add("تاریخ شروع و پایان الزامی است.", Severity.Error);
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync("api/semesters", new
+        {
+            Title = _model.Title,
+            StartsAtUtc = _startDate.Value,
+            EndsAtUtc = _endDate.Value
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("نیمسال ثبت شد.", Severity.Success);
+        _model = new SemesterVm();
+        await LoadAsync();
+    }
+
+    private sealed class SemesterVm
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = "";
+        public DateTime StartsAtUtc { get; set; }
+        public DateTime EndsAtUtc { get; set; }
+    }
+}

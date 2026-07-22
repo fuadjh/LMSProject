@@ -1,0 +1,197 @@
+﻿@page "/student/exams/{ExamId:guid}"
+@using Common.Security
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = Permissions.Exams.Take)]
+@using Common.Enums
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IConfiguration Configuration
+
+<MudPaper Class="pa-4">
+    @if (_exam is null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        <MudText Typo="Typo.h5">@_exam.Title</MudText>
+        <MudText Typo="Typo.caption">مدت: @_exam.DurationMinutes دقیقه</MudText>
+        <MudText Typo="Typo.caption">نوع برگزاری: @_exam.DeliveryMode</MudText>
+
+        @if (_submissionId == Guid.Empty)
+        {
+            <MudButton Class="mt-4" Color="Color.Primary" Variant="Variant.Filled" OnClick="StartAsync">
+                شروع آزمون
+            </MudButton>
+        }
+        else
+        {
+            <MudDivider Class="my-4" />
+
+            @foreach (var q in _exam.Questions)
+            {
+                <MudPaper Class="pa-3 mb-3" Outlined="true">
+                    <MudText Typo="Typo.subtitle1">@q.Title</MudText>
+                    <MudText>@q.Body</MudText>
+                    <MudText Typo="Typo.caption">نمره: @q.Score</MudText>
+
+                    @if (!string.IsNullOrWhiteSpace(q.AttachmentPath))
+                    {
+                        <MudLink Href="@($"{_apiBase}{q.AttachmentPath}")" Target="_blank">مشاهده فایل سوال</MudLink>
+                    }
+
+                    @if (q.Type == QuestionType.MultipleChoice)
+                    {
+                        <MudRadioGroup T="Guid?" @bind-Value="_answers[q.QuestionId].SelectedOptionId" Class="mt-2">
+                            @foreach (var opt in q.Options.OrderBy(x => x.Order))
+                            {
+                                <MudRadio Value="@((Guid?)opt.OptionId)">@opt.Text</MudRadio>
+                            }
+                        </MudRadioGroup>
+                    }
+                    else
+                    {
+                        <MudTextField @bind-Value="_answers[q.QuestionId].EssayText" Label="پاسخ تشریحی" Lines="4" Variant="Variant.Outlined" Class="mt-2" />
+                        <InputFile OnChange="@(e => UploadEssayFileAsync(q.QuestionId, e))" />
+                        @if (!string.IsNullOrWhiteSpace(_answers[q.QuestionId].EssayAttachmentFileName))
+                        {
+                            <MudText Typo="Typo.caption">فایل: @_answers[q.QuestionId].EssayAttachmentFileName</MudText>
+                        }
+                    }
+                </MudPaper>
+            }
+
+            <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SubmitAsync">
+                ثبت نهایی
+            </MudButton>
+        }
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public Guid ExamId { get; set; }
+
+    private string _apiBase = "";
+    private Guid _submissionId;
+    private ExamVm? _exam;
+    private Dictionary<Guid, AnswerVm> _answers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _apiBase = Configuration["ApiBaseUrl"]?.TrimEnd('/') ?? "";
+        _exam = await Http.GetFromJsonAsync<ExamVm>($"api/exams/{ExamId}/take");
+
+        if (_exam is not null)
+        {
+            foreach (var q in _exam.Questions)
+            {
+                _answers[q.QuestionId] = new AnswerVm { QuestionId = q.QuestionId };
+            }
+        }
+    }
+
+    private async Task StartAsync()
+    {
+        var response = await Http.PostAsync($"api/exams/{ExamId}/start", null);
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        _submissionId = await response.Content.ReadFromJsonAsync<Guid>();
+        Snackbar.Add("آزمون شروع شد.", Severity.Success);
+    }
+
+    private async Task UploadEssayFileAsync(Guid questionId, InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(file.OpenReadStream(10 * 1024 * 1024)), "file", file.Name);
+
+        var response = await Http.PostAsync("api/files/upload", content);
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<FileUploadVm>();
+        if (result is null) return;
+
+        _answers[questionId].EssayAttachmentFileName = result.FileName;
+        _answers[questionId].EssayAttachmentPath = result.RelativePath;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_submissionId == Guid.Empty)
+        {
+            Snackbar.Add("ابتدا آزمون را شروع کنید.", Severity.Warning);
+            return;
+        }
+
+        var response = await Http.PostAsJsonAsync($"api/exams/submissions/{_submissionId}/submit", new
+        {
+            Answers = _answers.Values.Select(x => new
+            {
+                x.QuestionId,
+                x.SelectedOptionId,
+                x.EssayText,
+                x.EssayAttachmentFileName,
+                x.EssayAttachmentPath
+            }).ToArray()
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("پاسخ‌ها ثبت شد.", Severity.Success);
+    }
+
+    private sealed class ExamVm
+    {
+        public Guid ExamId { get; set; }
+        public string Title { get; set; } = "";
+        public ExamDeliveryMode DeliveryMode { get; set; }
+        public int DurationMinutes { get; set; }
+        public List<QuestionVm> Questions { get; set; } = new();
+    }
+
+    private sealed class QuestionVm
+    {
+        public Guid QuestionId { get; set; }
+        public string Title { get; set; } = "";
+        public string Body { get; set; } = "";
+        public QuestionType Type { get; set; }
+        public decimal Score { get; set; }
+        public string? AttachmentPath { get; set; }
+        public List<OptionVm> Options { get; set; } = new();
+    }
+
+    private sealed class OptionVm
+    {
+        public Guid OptionId { get; set; }
+        public string Text { get; set; } = "";
+        public int Order { get; set; }
+    }
+
+    private sealed class AnswerVm
+    {
+        public Guid QuestionId { get; set; }
+        public Guid? SelectedOptionId { get; set; }
+        public string? EssayText { get; set; }
+        public string? EssayAttachmentFileName { get; set; }
+        public string? EssayAttachmentPath { get; set; }
+    }
+
+    private sealed class FileUploadVm
+    {
+        public string FileName { get; set; } = "";
+        public string RelativePath { get; set; } = "";
+    }
+}
