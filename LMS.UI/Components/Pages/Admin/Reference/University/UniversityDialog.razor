@@ -1,0 +1,154 @@
+﻿@using MudBlazor
+@using WebUi.Components.Crud
+@using WebUi.Pages.Admin.Reference.University
+
+@inherits CrudUpsertDialogBase<UniversityUpsertModel>
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(IsEdit ? "ویرایش دانشگاه" : "ثبت دانشگاه")
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudGrid>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Title"
+                                  Label="عنوان دانشگاه"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="عنوان دانشگاه الزامی است."
+                                  Disabled="IsBusy" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.Code"
+                                  Label="کد"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="کد دانشگاه الزامی است."
+                                  Disabled="IsBusy" />
+                </MudItem>
+
+                @if (IsEdit)
+                {
+                    <MudItem xs="12">
+                        <MudSwitch T="bool"
+                                   @bind-Value="_model.IsActive"
+                                   Color="Color.Primary"
+                                   Disabled="IsBusy">
+
+                            @(_model.IsActive
+                                ? "دانشگاه فعال است"
+                                : "دانشگاه غیرفعال است")
+                        </MudSwitch>
+                    </MudItem>
+                }
+
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Default"
+                   Disabled="IsBusy"
+                   OnClick="CancelDialog">
+            انصراف
+        </MudButton>
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="IsBusy"
+                   OnClick="SubmitAsync">
+
+            @if (IsBusy)
+            {
+                <MudProgressCircular Indeterminate="true"
+                                     Size="Size.Small"
+                                     Class="me-2" />
+            }
+
+            @(IsEdit
+                ? "ذخیره تغییرات"
+                : "ثبت")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter]
+    public UniversityUpsertModel? Model { get; set; }
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    private MudForm? _form;
+
+    private readonly UniversityUpsertModel _model = new();
+
+    protected override string CreateEndpoint =>
+        "api/reference-data/universities";
+
+    protected override string GetUpdateEndpoint(
+        UniversityUpsertModel model) =>
+        $"api/reference-data/universities/{model.Id}";
+
+    protected override string CreateSuccessMessage =>
+        "دانشگاه ثبت شد.";
+
+    protected override string UpdateSuccessMessage =>
+        "اطلاعات دانشگاه ویرایش شد.";
+
+    protected override void OnParametersSet()
+    {
+        _model.Id = Model?.Id;
+        _model.Title = Model?.Title ?? string.Empty;
+        _model.Code = Model?.Code ?? string.Empty;
+        _model.IsActive = Model?.IsActive ?? true;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_form is null || IsBusy)
+            return;
+
+        await _form.Validate();
+
+        if (!_form.IsValid)
+            return;
+
+        if (IsEdit && _model.Id is null)
+            return;
+
+        _model.Title = _model.Title.Trim();
+        _model.Code = _model.Code.Trim();
+
+        await SaveAsync(_model, IsEdit);
+    }
+
+    protected override object CreateRequest(
+        UniversityUpsertModel model)
+    {
+        return new
+        {
+            model.Title,
+            model.Code
+        };
+    }
+
+    protected override object UpdateRequest(
+        UniversityUpsertModel model)
+    {
+        return new
+        {
+            Id = model.Id,
+            model.Title,
+            model.Code,
+            model.IsActive
+        };
+    }
+}

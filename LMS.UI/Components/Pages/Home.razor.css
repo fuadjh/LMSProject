@@ -1,0 +1,604 @@
+﻿.smartdash-page {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+/* Hero */
+.smartdash-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+    border-radius: 28px;
+    background: radial-gradient(circle at top right, rgba(124, 58, 237, 0.18), transparent 28%), radial-gradient(circle at bottom left, rgba(37, 99, 235, 0.14), transparent 30%), linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.06);
+}
+
+.smartdash-hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.smartdash-hero-content {
+    max-width: 760px;
+}
+
+.smartdash-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.smartdash-title {
+    margin: 0 0 8px 0;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.3;
+}
+
+.smartdash-subtitle {
+    margin: 0;
+    color: #475569;
+    max-width: 680px;
+    line-height: 1.9;
+}
+
+.smartdash-hero-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Toolbar */
+.smartdash-toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: end;
+}
+
+.smartdash-toolbar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.smartdash-toolbar-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.smartdash-pill-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.smartdash-pill {
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: #fff;
+    color: #334155;
+    border-radius: 16px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .22s ease;
+    white-space: nowrap;
+}
+
+    .smartdash-pill:hover {
+        transform: translateY(-1px);
+        border-color: rgba(37, 99, 235, 0.28);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .smartdash-pill.is-active {
+        background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 14px 28px rgba(37, 99, 235, 0.22);
+    }
+
+.smartdash-mode-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Stats */
+.smartdash-stats-grid {
+    margin-top: 0;
+}
+
+.smartdash-stat-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px;
+    min-height: 110px;
+    border-radius: 24px;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.04);
+    transition: transform .22s ease, box-shadow .22s ease;
+}
+
+    .smartdash-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 32px rgba(15, 23, 42, 0.07);
+    }
+
+.smartdash-stat-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.smartdash-stat-icon-primary {
+    background: rgba(37, 99, 235, 0.10);
+    color: #2563eb;
+}
+
+.smartdash-stat-icon-secondary {
+    background: rgba(124, 58, 237, 0.10);
+    color: #7c3aed;
+}
+
+.smartdash-stat-icon-warning {
+    background: rgba(245, 158, 11, 0.12);
+    color: #d97706;
+}
+
+.smartdash-stat-icon-success {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+}
+
+.smartdash-stat-value {
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 6px;
+}
+
+.smartdash-stat-label {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* Main layout */
+.smartdash-main-grid {
+    margin-top: 0;
+}
+
+.smartdash-section {
+    padding: 20px;
+    border-radius: 26px;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.04);
+}
+
+.smartdash-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+    .smartdash-section-head.compact {
+        align-items: center;
+    }
+
+.smartdash-section-title {
+    margin: 0;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.smartdash-section-subtitle {
+    margin-top: 4px;
+    color: #64748b;
+}
+
+.smartdash-section-tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.smartdash-search {
+    min-width: 290px;
+}
+
+.smartdash-count-badge {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+/* Courses */
+.smartdash-courses-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.smartdash-course-card {
+    border-radius: 24px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.85) 0%, #ffffff 100%);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    overflow: hidden;
+}
+
+    .smartdash-course-card:hover {
+        transform: translateY(-3px);
+        border-color: rgba(37, 99, 235, 0.20);
+        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.07);
+    }
+
+.smartdash-course-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 16px 16px 0 16px;
+}
+
+.smartdash-course-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.smartdash-dot-badge {
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.10);
+    color: #047857;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.smartdash-course-body {
+    padding: 14px 16px 16px 16px;
+}
+
+.smartdash-course-name {
+    margin-bottom: 14px;
+    color: #0f172a;
+    font-weight: 800;
+    line-height: 1.65;
+}
+
+.smartdash-course-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 12px;
+    margin-bottom: 14px;
+}
+
+.smartdash-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #475569;
+    font-size: 13px;
+    min-width: 0;
+}
+
+    .smartdash-meta-row span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+.smartdash-course-progress-wrap {
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    margin-bottom: 14px;
+}
+
+.smartdash-progress-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.smartdash-progress {
+    height: 8px;
+}
+
+.smartdash-course-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.smartdash-course-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.smartdash-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.smartdash-course-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Side stack */
+.smartdash-side-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.smartdash-side-card {
+    position: relative;
+}
+
+/* Lists */
+.smartdash-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.smartdash-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 18px;
+    background: #fbfdff;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    transition: background .22s ease, transform .22s ease;
+}
+
+    .smartdash-list-item:hover {
+        background: #f8fbff;
+        transform: translateY(-1px);
+    }
+
+.smartdash-list-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+    .smartdash-list-icon.primary {
+        background: rgba(37, 99, 235, 0.10);
+        color: #2563eb;
+    }
+
+    .smartdash-list-icon.warning {
+        background: rgba(245, 158, 11, 0.12);
+        color: #d97706;
+    }
+
+    .smartdash-list-icon.info {
+        background: rgba(14, 165, 233, 0.12);
+        color: #0284c7;
+    }
+
+    .smartdash-list-icon.success {
+        background: rgba(16, 185, 129, 0.12);
+        color: #059669;
+    }
+
+.smartdash-list-content {
+    min-width: 0;
+    flex: 1;
+}
+
+.smartdash-list-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 2px;
+    line-height: 1.7;
+}
+
+.smartdash-list-subtitle {
+    font-size: 12px;
+    color: #475569;
+    line-height: 1.7;
+}
+
+.smartdash-list-meta {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+/* Responsive */
+@media (min-width: 1200px) {
+    .smartdash-side-stack {
+        position: sticky;
+        top: 12px;
+    }
+}
+
+@media (max-width: 1199.98px) {
+    .smartdash-courses-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 959.98px) {
+    .smartdash-hero {
+        padding: 18px;
+        border-radius: 24px;
+    }
+
+    .smartdash-hero-top {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .smartdash-toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .smartdash-search {
+        min-width: 100%;
+        width: 100%;
+    }
+}
+
+@media (max-width: 760px) {
+    .smartdash-page {
+        gap: 14px;
+    }
+
+    .smartdash-title {
+        font-size: 1.55rem;
+    }
+
+    .smartdash-subtitle {
+        font-size: 0.95rem;
+    }
+
+    .smartdash-pill-row {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+    }
+
+        .smartdash-pill-row::-webkit-scrollbar {
+            display: none;
+        }
+
+    .smartdash-pill {
+        flex: 0 0 auto;
+    }
+
+    .smartdash-section {
+        padding: 16px;
+        border-radius: 22px;
+    }
+
+    .smartdash-section-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .smartdash-courses-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .smartdash-course-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .smartdash-course-actions {
+        justify-content: flex-start;
+    }
+
+    .smartdash-stat-card {
+        min-height: 94px;
+        padding: 14px;
+        border-radius: 20px;
+    }
+
+    .smartdash-stat-value {
+        font-size: 22px;
+    }
+
+    .smartdash-list-item {
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .smartdash-hero-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .smartdash-kicker {
+        font-size: 12px;
+    }
+
+    .smartdash-title {
+        font-size: 1.35rem;
+    }
+
+    .smartdash-course-top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .smartdash-list-item {
+        padding: 10px;
+        border-radius: 16px;
+    }
+
+    .smartdash-list-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+    }
+}

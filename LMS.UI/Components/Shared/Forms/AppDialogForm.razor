@@ -1,0 +1,75 @@
+﻿@typeparam TModel
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+
+<EditForm EditContext="_editContext" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+
+    <MudDialog>
+        <DialogContent>
+            @ChildContent
+        </DialogContent>
+
+        <DialogActions>
+            <MudButton Variant="Variant.Text"
+                       Color="Color.Default"
+                       OnClick="HandleCancel"
+                       Disabled="_busy">
+                @CancelText
+            </MudButton>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       ButtonType="ButtonType.Submit"
+                       Disabled="_busy">
+                @(_busy ? BusyText : SubmitText)
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired] public TModel Model { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = default!;
+
+    [Parameter] public string SubmitText { get; set; } = "ثبت";
+    [Parameter] public string BusyText { get; set; } = "در حال ثبت...";
+    [Parameter] public string CancelText { get; set; } = "انصراف";
+
+    [Parameter, EditorRequired] public EventCallback<TModel> OnValidSubmit { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private EditContext _editContext = default!;
+    private bool _busy;
+
+    protected override void OnParametersSet()
+    {
+        if (_editContext is null || !ReferenceEquals(_editContext.Model, Model))
+        {
+            _editContext = new EditContext(Model);
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        _busy = true;
+        try
+        {
+            await OnValidSubmit.InvokeAsync(Model);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task HandleCancel()
+    {
+        if (OnCancel.HasDelegate)
+            await OnCancel.InvokeAsync();
+        else
+            MudDialog.Cancel();
+    }
+}

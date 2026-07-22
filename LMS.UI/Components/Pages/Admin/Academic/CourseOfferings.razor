@@ -1,0 +1,210 @@
+
+@using Common.Security
+@page "/admin/academic/course-offerings"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = Permissions.CourseOfferings.Create)]
+@using System.Net.Http.Json
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>ارائه درس</PageTitle>
+
+<MudPaper Class="pa-4">
+    <MudText Typo="Typo.h5">تعریف ارائه درس در نیمسال</MudText>
+
+    <MudGrid Class="mt-2">
+        <MudItem xs="12" md="4">
+            <MudSelect T="Guid" Label="دانشکده" @bind-Value="_facultyId" Variant="Variant.Outlined" OnValueChanged="FacultyChanged">
+                @foreach (var faculty in _faculties)
+                {
+                    <MudSelectItem Value="@faculty.Id">@faculty.Title</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudSelect T="Guid" Label="رشته" @bind-Value="_majorId" Variant="Variant.Outlined" OnValueChanged="MajorChanged">
+                @foreach (var major in _majors)
+                {
+                    <MudSelectItem Value="@major.Id">@major.Title</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudSelect T="Guid" Label="نیمسال" @bind-Value="_model.SemesterId" Variant="Variant.Outlined">
+                @foreach (var semester in _semesters)
+                {
+                    <MudSelectItem Value="@semester.Id">@semester.Title</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudSelect T="Guid" Label="درس" @bind-Value="_model.CourseId" Variant="Variant.Outlined">
+                @foreach (var course in _courses)
+                {
+                    <MudSelectItem Value="@course.Id">@($"{course.Code} - {course.Title}")</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+
+    <MudButton Class="mt-4" Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync">
+        ثبت ارائه
+    </MudButton>
+</MudPaper>
+
+<MudPaper Class="pa-4 mt-4">
+    <MudText Typo="Typo.h6">لیست ارائه‌ها</MudText>
+
+    <MudSelect T="Guid?" Label="فیلتر نیمسال" @bind-Value="_filterSemesterId" Variant="Variant.Outlined" Class="mt-2">
+        <MudSelectItem Value="@((Guid?)null)">همه</MudSelectItem>
+        @foreach (var semester in _semesters)
+        {
+            <MudSelectItem Value="@((Guid?)semester.Id)">@semester.Title</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudButton Class="mt-2" OnClick="LoadOfferingsAsync">بارگذاری</MudButton>
+  
+    <MudTable Items="_offerings" Dense="true" Hover="true" Class="mt-3">
+        <HeaderContent>
+            <MudTh>درس</MudTh>
+            <MudTh>نیمسال</MudTh>
+            <MudTh>استاد</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.CourseTitle</MudTd>
+            <MudTd>@context.SemesterTitle</MudTd>
+            <MudTd>@(string.IsNullOrWhiteSpace(context.InstructorName) ? "-" : context.InstructorName)</MudTd>
+            <MudTd>
+                  <MudButton Size="Size.Small" Class="ms-2" OnClick="@(() => Nav.NavigateTo($"/admin/academic/course-offerings/{context.Id}/enrollments"))">
+        ثبت‌نام‌ها
+    </MudButton>
+
+    <MudButton Size="Size.Small" Class="ms-2" OnClick="@(() => Nav.NavigateTo($"/admin/academic/course-offerings/{context.Id}/question-bank"))">
+        بانک سوال
+    </MudButton>
+
+    <MudButton Size="Size.Small" Class="ms-2" OnClick="@(() => Nav.NavigateTo($"/admin/academic/course-offerings/{context.Id}/exams"))">
+        آزمون‌ها
+    </MudButton>
+                <MudButton Size="Size.Small" OnClick="@(() => Nav.NavigateTo($"/admin/academic/course-offerings/{context.Id}/assign-instructor"))">
+                    تخصیص استاد
+                </MudButton>
+                <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => UnassignInstructorAsync(context.Id))">
+                    حذف استاد
+                </MudButton>
+                <MudButton Size="Size.Small" Class="ms-2" OnClick="@(() => Nav.NavigateTo($"/admin/academic/course-offerings/{context.Id}/enroll-student"))">
+                    تخصیص دانشجو
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private Guid _facultyId;
+    private Guid _majorId;
+    private Guid? _filterSemesterId;
+
+    private CreateOfferingVm _model = new();
+    private List<LookupVm> _faculties = new();
+    private List<LookupVm> _majors = new();
+    private List<CourseVm> _courses = new();
+    private List<SemesterVm> _semesters = new();
+    private List<OfferingVm> _offerings = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _faculties = await Http.GetFromJsonAsync<List<LookupVm>>("api/reference-data/faculties") ?? new();
+        _semesters = await Http.GetFromJsonAsync<List<SemesterVm>>("api/semesters") ?? new();
+        await LoadOfferingsAsync();
+    }
+
+    private async Task FacultyChanged(Guid id)
+    {
+        _facultyId = id;
+        _majors = await Http.GetFromJsonAsync<List<LookupVm>>($"api/reference-data/majors?facultyId={id}") ?? new();
+        _courses.Clear();
+        StateHasChanged();
+    }
+
+    private async Task MajorChanged(Guid id)
+    {
+        _majorId = id;
+        _courses = await Http.GetFromJsonAsync<List<CourseVm>>($"api/courses?majorId={id}") ?? new();
+        StateHasChanged();
+    }
+
+    private async Task CreateAsync()
+    {
+        var response = await Http.PostAsJsonAsync("api/course-offerings", _model);
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("ارائه درس ثبت شد.", Severity.Success);
+        _model = new();
+        await LoadOfferingsAsync();
+    }
+
+    private async Task LoadOfferingsAsync()
+    {
+        var url = _filterSemesterId.HasValue
+            ? $"api/course-offerings?semesterId={_filterSemesterId}"
+            : "api/course-offerings";
+
+        _offerings = await Http.GetFromJsonAsync<List<OfferingVm>>(url) ?? new();
+    }
+    private async Task UnassignInstructorAsync(Guid offeringId)
+    {
+        var response = await Http.DeleteAsync($"api/course-offerings/{offeringId}/instructor");
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("استاد از ارائه حذف شد.", Severity.Success);
+        await LoadOfferingsAsync();
+    }
+
+    private sealed class CreateOfferingVm
+    {
+        public Guid CourseId { get; set; }
+        public Guid SemesterId { get; set; }
+    }
+
+    private sealed class LookupVm
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = "";
+    }
+
+    private sealed class CourseVm
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = "";
+        public string Code { get; set; } = "";
+    }
+
+    private sealed class SemesterVm
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = "";
+    }
+
+    private sealed class OfferingVm
+    {
+        public Guid Id { get; set; }
+        public string CourseTitle { get; set; } = "";
+        public string SemesterTitle { get; set; } = "";
+        public string? InstructorName { get; set; }
+    }
+}

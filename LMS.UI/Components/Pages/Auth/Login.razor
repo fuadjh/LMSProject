@@ -1,0 +1,109 @@
+@page "/login"
+@using Microsoft.AspNetCore.Components
+@using MudBlazor
+
+<PageTitle>ورود</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraSmall" Class="mt-12">
+    <MudPaper Elevation="8" Class="pa-6 pa-sm-8 rounded-lg">
+        <MudStack Spacing="3">
+
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudAvatar Icon="@Icons.Material.Filled.LockPerson"
+                           Color="Color.Primary"
+                           Size="Size.Large" />
+                <div>
+                    <MudText Typo="Typo.h5">ورود به سامانه</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        نام کاربری و کلمه عبور خود را وارد کنید
+                    </MudText>
+                </div>
+            </MudStack>
+
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
+                    @Error
+                </MudAlert>
+            }
+
+            <form method="post" action="/auth/login">
+                <input type="hidden" name="ReturnUrl" value="@NormalizedReturnUrl" />
+                <input type="hidden" name="UserName" value="@model.UserName" />
+                <input type="hidden" name="Password" value="@model.Password" />
+                <input type="hidden" name="RememberMe" value="@model.RememberMe.ToString().ToLowerInvariant()" />
+
+                <MudStack Spacing="2">
+
+                    <MudTextField @bind-Value="model.UserName"
+                                  Label="نام کاربری"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  FullWidth="true"
+                                  Immediate="true"
+                                  Required="true"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.PersonOutline" />
+
+                    <MudTextField @bind-Value="model.Password"
+                                  Label="کلمه عبور"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  FullWidth="true"
+                                  Immediate="true"
+                                  Required="true"
+                                  InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="TogglePasswordVisibility" />
+
+                    <MudCheckBox @bind-Value="model.RememberMe"
+                                 Label="مرا به خاطر بسپار"
+                                 Color="Color.Primary"
+                                 Dense="true" />
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.Login">
+                        ورود
+                    </MudButton>
+                </MudStack>
+            </form>
+
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private readonly LoginFormModel model = new();
+
+    private bool _showPassword;
+
+    private string NormalizedReturnUrl =>
+        string.IsNullOrWhiteSpace(ReturnUrl) || !ReturnUrl.StartsWith("/")
+            ? "/"
+            : ReturnUrl;
+
+    private void TogglePasswordVisibility()
+    {
+        _showPassword = !_showPassword;
+    }
+
+    private sealed class LoginFormModel
+    {
+        public string? UserName { get; set; }
+        public string? Password { get; set; }
+        public bool RememberMe { get; set; }
+    }
+}

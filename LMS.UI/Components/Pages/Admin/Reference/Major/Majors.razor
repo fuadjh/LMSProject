@@ -1,0 +1,361 @@
+﻿@page "/admin/reference/majors"
+
+@using System.Net.Http.Json
+@using Common.Security
+@using MudBlazor
+@using WebUi.Components.Crud
+@using WebUi.Pages.Admin.Reference.Major
+
+@inherits CrudServerPageBase<MajorUpsertModel>
+
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+@*
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(
+    Policy = Permissions.ReferenceData.Manage)]
+*@
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true"
+              Wrap="Wrap.Wrap"
+              Spacing="2"
+              Justify="Justify.SpaceBetween"
+              AlignItems="AlignItems.Center">
+
+        <MudText Typo="Typo.h5">
+            مدیریت رشته‌ها
+        </MudText>
+
+        <MudStack Row="true"
+                  Wrap="Wrap.Wrap"
+                  Spacing="2"
+                  AlignItems="AlignItems.Center">
+
+            <MudTextField T="string"
+                          @bind-Value="_search"
+                          Placeholder="جستجو در دانشگاه، دانشکده، عنوان یا کد"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Clearable="true"
+                          Immediate="true"
+                          DebounceInterval="400"
+                          OnDebounceIntervalElapsed="SearchAsync"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Style="min-width: 300px;" />
+
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenCreateDialogAsync">
+                ثبت رشته
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    <MudTable T="MajorUpsertModel"
+              @ref="CrudTable"
+              ServerData="LoadServerDataAsync"
+              Dense="true"
+              Hover="true"
+              Loading="_loading"
+              Class="mt-4">
+
+        <HeaderContent>
+            <MudTh>
+                <MudTableSortLabel T="MajorUpsertModel"
+                                   SortLabel="university">
+                    دانشگاه
+                </MudTableSortLabel>
+            </MudTh>
+
+            <MudTh>
+                <MudTableSortLabel T="MajorUpsertModel"
+                                   SortLabel="faculty">
+                    دانشکده
+                </MudTableSortLabel>
+            </MudTh>
+
+            <MudTh>
+                <MudTableSortLabel T="MajorUpsertModel"
+                                   SortLabel="title">
+                    عنوان رشته
+                </MudTableSortLabel>
+            </MudTh>
+
+            <MudTh>
+                <MudTableSortLabel T="MajorUpsertModel"
+                                   SortLabel="code">
+                    کد
+                </MudTableSortLabel>
+            </MudTh>
+
+            <MudTh>
+                <MudTableSortLabel T="MajorUpsertModel"
+                                   SortLabel="status">
+                    وضعیت
+                </MudTableSortLabel>
+            </MudTh>
+
+            <MudTh Class="text-end">
+                عملیات
+            </MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd DataLabel="دانشگاه">
+                @context.UniversityTitle
+            </MudTd>
+
+            <MudTd DataLabel="دانشکده">
+                @context.FacultyTitle
+            </MudTd>
+
+            <MudTd DataLabel="عنوان رشته">
+                @context.Title
+            </MudTd>
+
+            <MudTd DataLabel="کد">
+                @context.Code
+            </MudTd>
+
+            <MudTd DataLabel="وضعیت">
+                <MudChip T="string"
+                         Size="Size.Small"
+                         Color="@(context.IsActive
+                                                                               ? Color.Success
+                                                                               : Color.Default)">
+                    @(context.IsActive ? "فعال" : "غیرفعال")
+                </MudChip>
+            </MudTd>
+
+            <MudTd DataLabel="عملیات"
+                   Class="text-end">
+
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               Disabled="_loading"
+                               OnClick="@(() => OpenEditDialogAsync(context))" />
+
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                               Color="Color.Error"
+                               Size="Size.Small"
+                               Disabled="_loading"
+                               OnClick="@(() => OpenDeleteDialogAsync(context))" />
+            </MudTd>
+        </RowTemplate>
+
+        <LoadingContent>
+            <div class="pa-6 d-flex justify-center">
+                <MudStack AlignItems="AlignItems.Center"
+                          Spacing="2">
+
+                    <MudProgressCircular Indeterminate="true"
+                                         Color="Color.Primary" />
+
+                    <MudText Typo="Typo.body2">
+                        در حال بارگذاری رشته‌ها...
+                    </MudText>
+                </MudStack>
+            </div>
+        </LoadingContent>
+
+        <NoRecordsContent>
+            <div class="pa-6 d-flex justify-center">
+                <MudStack AlignItems="AlignItems.Center"
+                          Spacing="1">
+
+                    <MudIcon Icon="@Icons.Material.Filled.School"
+                             Size="Size.Large"
+                             Color="Color.Tertiary" />
+
+                    <MudText Typo="Typo.body1">
+                        @(_hasSearch
+                            ? "موردی مطابق جستجوی شما یافت نشد."
+                            : "هنوز رشته‌ای ثبت نشده است.")
+                    </MudText>
+                </MudStack>
+            </div>
+        </NoRecordsContent>
+
+        <PagerContent>
+            <MudTablePager PageSizeOptions="_pageSizeOptions"
+                           RowsPerPageString="تعداد در صفحه"
+                           InfoFormat="{first_item}-{last_item} از {all_items}" />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private static readonly int[] _pageSizeOptions = [10, 25, 50];
+
+    private string _search = string.Empty;
+    private bool _loading;
+
+    private bool _hasSearch =>
+        !string.IsNullOrWhiteSpace(_search);
+
+    private async Task<TableData<MajorUpsertModel>> LoadServerDataAsync(
+        TableState state,
+        CancellationToken cancellationToken)
+    {
+        _loading = true;
+
+        try
+        {
+            var pageNumber = state.Page + 1;
+
+            var pageSize = state.PageSize <= 0
+                ? 10
+                : state.PageSize;
+
+            var sortBy = string.IsNullOrWhiteSpace(state.SortLabel)
+                ? "title"
+                : state.SortLabel;
+
+            var sortDescending =
+                state.SortDirection == SortDirection.Descending;
+
+            var url =
+                "api/reference-data/majors" +
+                $"?search={Uri.EscapeDataString(_search)}" +
+                $"&pageNumber={pageNumber}" +
+                $"&pageSize={pageSize}" +
+                $"&sortBy={Uri.EscapeDataString(sortBy)}" +
+                $"&sortDescending={sortDescending.ToString().ToLowerInvariant()}";
+
+            var response =
+                await Http.GetFromJsonAsync<PagedMajorsResponse>(
+                    url,
+                    cancellationToken);
+
+            return new TableData<MajorUpsertModel>
+            {
+                Items = response?.Items ?? [],
+                TotalItems = response?.TotalCount ?? 0
+            };
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            return new TableData<MajorUpsertModel>
+            {
+                Items = [],
+                TotalItems = 0
+            };
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(
+                "دریافت اطلاعات رشته‌ها ناموفق بود.",
+                Severity.Error);
+
+            return new TableData<MajorUpsertModel>
+            {
+                Items = [],
+                TotalItems = 0
+            };
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SearchAsync(string value)
+    {
+        _search = value ?? string.Empty;
+
+        await ReloadAsync();
+    }
+
+    private Task OpenCreateDialogAsync()
+    {
+        var parameters = new DialogParameters<MajorDialog>
+        {
+            {
+                x => x.Model,
+                new MajorUpsertModel
+                {
+                    IsActive = true
+                }
+            },
+            {
+                x => x.IsEdit,
+                false
+            }
+        };
+
+        return OpenDialogAndReloadAsync<MajorDialog>(
+            "ثبت رشته",
+            parameters,
+            MaxWidth.Small);
+    }
+
+    private Task OpenEditDialogAsync(
+        MajorUpsertModel item)
+    {
+        if (item.Id is null)
+            return Task.CompletedTask;
+
+        var parameters = new DialogParameters<MajorDialog>
+        {
+            {
+                x => x.Model,
+                new MajorUpsertModel
+                {
+                    Id = item.Id,
+                    UniversityId = item.UniversityId,
+                    UniversityTitle = item.UniversityTitle,
+                    FacultyId = item.FacultyId,
+                    FacultyTitle = item.FacultyTitle,
+                    Title = item.Title,
+                    Code = item.Code,
+                    IsActive = item.IsActive
+                }
+            },
+            {
+                x => x.IsEdit,
+                true
+            }
+        };
+
+        return OpenDialogAndReloadAsync<MajorDialog>(
+            "ویرایش رشته",
+            parameters,
+            MaxWidth.Small);
+    }
+
+    private Task OpenDeleteDialogAsync(
+        MajorUpsertModel item)
+    {
+        if (item.Id is null)
+            return Task.CompletedTask;
+
+        var parameters = new DialogParameters<MajorDeleteDialog>
+        {
+            {
+                x => x.Id,
+                item.Id.Value
+            },
+            {
+                x => x.ItemTitle,
+                item.Title
+            }
+        };
+
+        return OpenDialogAndReloadAsync<MajorDeleteDialog>(
+            "حذف رشته",
+            parameters,
+            MaxWidth.ExtraSmall);
+    }
+
+    private sealed class PagedMajorsResponse
+    {
+        public List<MajorUpsertModel> Items { get; set; } = [];
+
+        public int TotalCount { get; set; }
+    }
+}

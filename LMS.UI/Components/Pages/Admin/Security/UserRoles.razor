@@ -1,0 +1,124 @@
+@page "/admin/security/user-roles"
+@using Common.Security
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = Permissions.Security.UserRolesAssign)]
+@using System.Net.Http.Json
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudGrid>
+    <MudItem xs="12" md="5">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6">جستجوی کاربران</MudText>
+            <MudTextField @bind-Value="_search" Label="نام یا نام کاربری" Variant="Variant.Outlined" Class="mt-2" />
+            <MudButton Class="mt-2" OnClick="SearchAsync" Variant="Variant.Filled" Color="Color.Primary">جستجو</MudButton>
+
+            <MudList T="string" Dense="true" Class="mt-3">
+                @foreach (var user in _users)
+                {
+                    <MudListItem OnClick="@(() => SelectUserAsync(user))">@user.FullName (@user.UserName)</MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="7">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6">نقش‌های کاربر</MudText>
+
+            @if (_selectedUser is null)
+            {
+                <MudAlert Severity="Severity.Info">کاربری انتخاب نشده است.</MudAlert>
+            }
+            else
+            {
+                <MudText>@_selectedUser.FullName</MudText>
+                <MudText Typo="Typo.caption">@_selectedUser.UserName</MudText>
+
+                <MudList T="string" Dense="true" Class="mt-3">
+                    @foreach (var role in _roles)
+                    {
+                        <MudListItem>
+                            <MudCheckBox T="bool" Checked="@_selectedRoles.Contains(role.Name)" CheckedChanged="@((bool v) => ToggleRole(role.Name, v))" />
+                            <MudText Class="ms-2">@role.Name</MudText>
+                        </MudListItem>
+                    }
+                </MudList>
+
+                <MudButton Class="mt-4" OnClick="SaveAsync" Variant="Variant.Filled" Color="Color.Primary">ذخیره</MudButton>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private string _search = "";
+    private List<UserVm> _users = new();
+    private List<RoleVm> _roles = new();
+    private UserVm? _selectedUser;
+    private Guid _selectedProfileId;
+    private Guid _selectedAuthUserId;
+    private HashSet<string> _selectedRoles = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _roles = await Http.GetFromJsonAsync<List<RoleVm>>("api/roles") ?? new();
+    }
+
+    private async Task SearchAsync()
+    {
+        _users = await Http.GetFromJsonAsync<List<UserVm>>($"api/user-access/users?search={Uri.EscapeDataString(_search ?? "")}") ?? new();
+    }
+
+    private async Task SelectUserAsync(UserVm user)
+    {
+        _selectedUser = user;
+        _selectedProfileId = user.UserProfileId;
+        _selectedAuthUserId = user.AuthUserId;
+
+        var details = await Http.GetFromJsonAsync<UserAccessDetailsVm>($"api/user-access/profiles/{user.UserProfileId}");
+        _selectedRoles = details?.Roles?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new();
+    }
+
+    private void ToggleRole(string roleName, bool value)
+    {
+        if (value) _selectedRoles.Add(roleName);
+        else _selectedRoles.Remove(roleName);
+    }
+
+    private async Task SaveAsync()
+    {
+        var response = await Http.PutAsJsonAsync($"api/user-access/{_selectedAuthUserId}/roles", new
+        {
+            Roles = _selectedRoles.ToArray()
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("نقش‌های کاربر ذخیره شد.", Severity.Success);
+    }
+
+    private sealed class UserVm
+    {
+        public Guid UserProfileId { get; set; }
+        public Guid AuthUserId { get; set; }
+        public string FullName { get; set; } = "";
+        public string UserName { get; set; } = "";
+        public bool IsActive { get; set; }
+    }
+
+    private sealed class RoleVm
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    private sealed class UserAccessDetailsVm
+    {
+        public IReadOnlyCollection<string> Roles { get; set; } = Array.Empty<string>();
+    }
+}

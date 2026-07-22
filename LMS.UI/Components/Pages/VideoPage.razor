@@ -1,0 +1,66 @@
+﻿@page "/video/{VideoId:int}"
+@rendermode InteractiveServer
+@using MudBlazor
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="video-page-container">
+
+    @* دکمه بازگشت *@
+    <div class="video-back-button">
+        <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@GoBack">
+            <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" Class="ml-1" />
+            بازگشت به درس
+        </MudButton>
+    </div>
+
+    @* پلیر ویدئو *@
+    <MudPaper Class="video-player-paper pa-0" Elevation="0">
+        <div class="video-player-container">
+            <video id="mainVideo"
+                   class="video-player"
+                   controls
+                   autoplay
+                   src="@videoUrl">
+                مرورگر شما از پخش ویدئو پشتیبانی نمی‌کند.
+            </video>
+        </div>
+
+        <div class="video-info-section pa-4">
+            <MudText Typo="Typo.h5" Class="font-weight-bold">@videoTitle</MudText>
+            <div class="video-meta mt-2">
+                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
+                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" /> @videoDuration
+                </MudChip>
+            </div>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">
+                @videoDescription
+            </MudText>
+        </div>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter] public int VideoId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Title { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Url { get; set; }
+
+    private string videoTitle = "";
+    private string videoUrl = "";
+    private string videoDuration = "45 دقیقه";
+    private string videoDescription = "در این جلسه با مفاهیم پایه و مبانی اولیه درس آشنا می‌شوید.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        videoTitle = Title ?? "ویدئو آموزشی";
+        videoUrl = Url ?? "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+    }
+
+    private void GoBack()
+    {
+        // Navigation.NavigateTo($"/course/{CourseId}");
+    }
+}

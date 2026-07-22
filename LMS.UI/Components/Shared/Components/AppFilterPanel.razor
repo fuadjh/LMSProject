@@ -1,0 +1,33 @@
+﻿@* Shared/Components/AppFilterPanel.razor *@
+<MudCard Elevation="2" Class="mb-4 rounded-lg">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.FilterAlt" Size="Size.Small" />
+                فیلتر و جستجو
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent Class="pt-0">
+        <MudGrid>
+            @ChildContent
+        </MudGrid>
+    </MudCardContent>
+    <MudCardActions Class="d-flex justify-end pa-4 pt-0">
+        @if (OnClear.HasDelegate)
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="OnClear" Class="mr-2">
+                پاک کردن
+            </MudButton>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnSearch" StartIcon="@Icons.Material.Filled.Search">
+            اعمال فیلتر
+        </MudButton>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public EventCallback OnSearch { get; set; }
+    [Parameter] public EventCallback OnClear { get; set; }
+}

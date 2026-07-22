@@ -1,0 +1,171 @@
+﻿@page "/courses"
+@using MudBlazor
+
+@using WebUi.Components.Pages.Admin.Academic.Courses;
+@using  WebUi.Components.Shared.Crud;
+@using  WebUi.Components.Shared.Dialogs
+@inject ICrudPageService<CourseListItemVm, CourseFormModel, Guid> CourseService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">مدیریت درس‌ها</MudText>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateDialogAsync">
+        درس جدید
+    </MudButton>
+</MudStack>
+
+<CrudTable TItem="CourseListItemVm"
+           Items="_items"
+           Loading="_loading"
+           HeaderColumns="TableHeader"
+           RowColumns="TableRow"
+           OnEdit="OpenEditDialogAsync"
+           OnDelete="DeleteAsync"
+           OnActivate="ActivateAsync"
+           OnDeactivate="DeactivateAsync"
+           IsActive="x => x.IsActive" />
+
+@code {
+    private IReadOnlyList<CourseListItemVm> _items = Array.Empty<CourseListItemVm>();
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _items = await CourseService.GetListAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private RenderFragment TableHeader => @<text>
+        <MudTh>کد</MudTh>
+        <MudTh>عنوان</MudTh>
+        <MudTh>رشته</MudTh>
+        <MudTh>واحد</MudTh>
+        <MudTh>وضعیت</MudTh>
+    </text>;
+
+    private RenderFragment<CourseListItemVm> TableRow => item => @<text>
+        <MudTd DataLabel="کد">@item.Code</MudTd>
+        <MudTd DataLabel="عنوان">@item.Title</MudTd>
+        <MudTd DataLabel="رشته">@item.MajorTitle</MudTd>
+        <MudTd DataLabel="واحد">@item.Units</MudTd>
+        <MudTd DataLabel="وضعیت">@(item.IsActive ? "فعال" : "غیرفعال")</MudTd>
+    </text>;
+
+    private async Task OpenCreateDialogAsync()
+    {
+        var dialog = await DialogService.ShowAsync<CourseUpsertDialog>(
+            "درس جدید",
+            new DialogOptions
+            {
+                FullWidth = true,
+                MaxWidth = MaxWidth.Medium,
+                CloseOnEscapeKey = true
+            });
+
+        var result = await dialog.Result;
+        if (!result.Canceled)
+            await LoadAsync();
+    }
+
+    private async Task OpenEditDialogAsync(CourseListItemVm item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Id"] = item.Id
+        };
+
+        var dialog = await DialogService.ShowAsync<CourseUpsertDialog>(
+            "ویرایش درس",
+            parameters,
+            new DialogOptions
+            {
+                FullWidth = true,
+                MaxWidth = MaxWidth.Medium,
+                CloseOnEscapeKey = true
+            });
+
+        var result = await dialog.Result;
+        if (!result.Canceled)
+            await LoadAsync();
+    }
+
+    private async Task DeleteAsync(CourseListItemVm item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Message"] = $"آیا از حذف درس «{item.Title}» مطمئن هستید؟",
+            ["ConfirmText"] = "حذف",
+            ["CancelText"] = "انصراف"
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
+            "حذف درس",
+            parameters,
+            new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                FullWidth = true,
+                MaxWidth = MaxWidth.ExtraSmall
+            });
+
+        var result = await dialog.Result;
+        if (result.Canceled)
+            return;
+
+        try
+        {
+            await CourseService.DeleteAsync(item.Id);
+            Snackbar.Add("درس حذف شد.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task ActivateAsync(CourseListItemVm item)
+    {
+        try
+        {
+            await CourseService.SetActiveAsync(item.Id, true);
+            Snackbar.Add("درس فعال شد.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task DeactivateAsync(CourseListItemVm item)
+    {
+        try
+        {
+            await CourseService.SetActiveAsync(item.Id, false);
+            Snackbar.Add("درس غیرفعال شد.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}
