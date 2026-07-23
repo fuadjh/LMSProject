@@ -1,0 +1,10 @@
+در Program.cs فقط یک بار این ثبت‌ها را نگه دارید:
+
+builder.Services.AddMediatR(typeof(LoginCommandHandler).Assembly);
+builder.Services.AddValidatorsFromAssembly(typeof(LoginCommandHandler).Assembly);
+builder.Services.AddTransient(
+    typeof(IPipelineBehavior<,>),
+    typeof(ValidationBehavior<,>));
+
+ثبت تکراری Validator، ValidationBehavior، ISender و IPublisher را حذف کنید.
+در CORS در صورت استفاده مرورگری AllowCredentials() را اضافه کنید.
