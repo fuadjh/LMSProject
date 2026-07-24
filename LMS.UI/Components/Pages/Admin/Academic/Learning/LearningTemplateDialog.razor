@@ -1,0 +1,195 @@
+﻿@using Common.Contracts.Learning
+@using WebUi.Services
+
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            قالب آموزشی
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudTabs>
+            <MudTabPanel Text="ذخیره به‌عنوان قالب">
+                <MudStack Spacing="3"
+                          Class="pa-3">
+
+                    <MudTextField @bind-Value="_title"
+                                  Label="عنوان قالب"
+                                  Variant="Variant.Outlined"
+                                  Required="true" />
+
+                    <MudSwitch T="bool"
+                               @bind-Value="_isShared"
+                               Color="Color.Primary">
+                        قابل استفاده توسط سایر استادان این درس
+                    </MudSwitch>
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="_busy"
+                               OnClick="CreateTemplateAsync">
+                        ذخیره قالب
+                    </MudButton>
+                </MudStack>
+            </MudTabPanel>
+
+            <MudTabPanel Text="اعمال قالب موجود">
+                <MudStack Spacing="3"
+                          Class="pa-3">
+
+                    <MudSelect T="Guid?"
+                               @bind-Value="_selectedTemplateId"
+                               Label="انتخاب قالب"
+                               Variant="Variant.Outlined">
+
+                        @foreach (var template in _templates)
+                        {
+                            <MudSelectItem T="Guid?"
+                                           Value="@((Guid?)template.Id)">
+                                @template.Title
+                                @(template.IsShared
+                                    ? " - اشتراکی"
+                                    : string.Empty)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudAlert Severity="Severity.Warning">
+                        اعمال قالب فقط زمانی ممکن است که ارائه مقصد
+                        فاقد محتوای آموزشی باشد.
+                    </MudAlert>
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Secondary"
+                               Disabled="_busy ||
+                                                                        !_selectedTemplateId.HasValue"
+       OnClick="ApplyTemplateAsync">
+اعمال قالب
+</MudButton>
+                </MudStack>
+            </MudTabPanel>
+        </MudTabs>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Disabled="_busy"
+                   OnClick="MudDialog.Cancel">
+            بستن
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public Guid CourseOfferingId { get; set; }
+
+    [Parameter, EditorRequired]
+    public Guid CourseId { get; set; }
+
+    private IReadOnlyCollection<LearningTemplateListItemDto>
+        _templates = [];
+
+    private Guid? _selectedTemplateId;
+    private string _title = string.Empty;
+    private bool _isShared;
+    private bool _busy;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _templates =
+            await Http.GetFromJsonAsync<
+                IReadOnlyCollection<
+                    LearningTemplateListItemDto>>(
+                $"api/learning-content/templates?courseId={CourseId}")
+            ?? [];
+    }
+
+    private async Task CreateTemplateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_title))
+        {
+            Snackbar.Add(
+                "عنوان قالب الزامی است.",
+                Severity.Warning);
+
+            return;
+        }
+
+        _busy = true;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync(
+                "api/learning-content/templates/from-offering",
+                new
+                {
+                    CourseOfferingId,
+                    Title = _title.Trim(),
+                    IsShared = _isShared
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(
+                    await ApiErrorReader.ReadErrorAsync(response),
+                    Severity.Error);
+
+                return;
+            }
+
+            Snackbar.Add(
+                "قالب آموزشی ذخیره شد.",
+                Severity.Success);
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ApplyTemplateAsync()
+    {
+        if (!_selectedTemplateId.HasValue)
+            return;
+
+        _busy = true;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync(
+                $"api/learning-content/templates/{_selectedTemplateId.Value}/apply",
+                new
+                {
+                    CourseOfferingId
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(
+                    await ApiErrorReader.ReadErrorAsync(response),
+                    Severity.Error);
+
+                return;
+            }
+
+            Snackbar.Add(
+                "قالب آموزشی اعمال شد.",
+                Severity.Success);
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

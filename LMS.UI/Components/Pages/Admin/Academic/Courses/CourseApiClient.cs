@@ -83,9 +83,23 @@ public sealed class CourseApiClient(HttpClient httpClient)
         response.EnsureSuccessStatusCode();
     }
 
-    private async Task<IReadOnlyList<LookupItemVm>> GetMajorsAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<LookupItemVm>> GetMajorsAsync(
+    CancellationToken cancellationToken)
     {
-        var result = await httpClient.GetFromJsonAsync<IReadOnlyList<LookupItemVm>>("api/reference-data/majors", cancellationToken);
-        return result ?? Array.Empty<LookupItemVm>();
+        var response =
+            await httpClient.GetFromJsonAsync<PagedResponse<LookupItemVm>>(
+                "api/reference-data/majors?pageNumber=1&pageSize=100",
+                cancellationToken);
+
+        return response?.Items
+            ?? Array.Empty<LookupItemVm>();
+    }
+
+    private sealed class PagedResponse<T>
+    {
+        public IReadOnlyList<T> Items { get; init; }
+            = Array.Empty<T>();
+
+        public int TotalCount { get; init; }
     }
 }

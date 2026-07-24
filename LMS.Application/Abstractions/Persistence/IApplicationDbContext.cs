@@ -1,5 +1,6 @@
 ﻿using Domain.Entities.Academics;
 using Domain.Entities.Exams;
+using Domain.Entities.Learning;
 using Domain.Entities.Users;
 
 namespace Application.Abstractions.Persistence;
@@ -14,9 +15,7 @@ public interface IApplicationDbContext
     IQueryable<Semester> Semesters { get; }
     IQueryable<CourseOffering> CourseOfferings { get; }
     IQueryable<Enrollment> Enrollments { get; }
-    IQueryable<UserFacultyScope> UserFacultyScopes { get; }
 
-    IQueryable<UserMajorScope> UserMajorScopes { get; }
     IQueryable<QuestionBank> QuestionBanks { get; }
     IQueryable<Question> Questions { get; }
     IQueryable<QuestionOption> QuestionOptions { get; }
@@ -25,15 +24,26 @@ public interface IApplicationDbContext
     IQueryable<ExamSubmission> ExamSubmissions { get; }
     IQueryable<ExamAnswer> ExamAnswers { get; }
 
+    IQueryable<LearningModule> LearningModules { get; }
+    IQueryable<LearningItem> LearningItems { get; }
+    IQueryable<LearningItemProgress> LearningItemProgresses { get; }
+    IQueryable<LearningTemplate> LearningTemplates { get; }
+    IQueryable<LearningTemplateModule> LearningTemplateModules { get; }
+    IQueryable<LearningTemplateItem> LearningTemplateItems { get; }
+
     IQueryable<UserProfile> UserProfiles { get; }
     IQueryable<StudentProfile> StudentProfiles { get; }
     IQueryable<InstructorProfile> InstructorProfiles { get; }
     IQueryable<EducationExpertProfile> EducationExpertProfiles { get; }
 
-
-    Task AddAsync<TEntity>(TEntity entity, CancellationToken cancellationToken = default)
+    Task AddAsync<TEntity>(
+        TEntity entity,
+        CancellationToken cancellationToken = default)
         where TEntity : class;
 
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
-    Task<IAppTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
+    Task<int> SaveChangesAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IAppTransaction> BeginTransactionAsync(
+        CancellationToken cancellationToken = default);
 }

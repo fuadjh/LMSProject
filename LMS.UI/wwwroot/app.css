@@ -14,6 +14,27 @@ h1:focus {
     outline: none;
 }
 
+.private-video-container {
+    width: 100%;
+    max-width: 100%;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.private-video-player {
+    width: 100%;
+    display: block;
+    min-height: 280px;
+}
+
+.app-rich-editor .ql-editor {
+    min-height: 240px;
+    direction: rtl;
+    text-align: right;
+    font-family: Vazirmatn, Tahoma, sans-serif;
+}
+
 /* ============================================
    اعتبارسنجی فرم‌ها (Validation)
    ============================================ */

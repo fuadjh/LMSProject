@@ -1,0 +1,548 @@
+﻿@page "/admin/academic/course-offerings/{OfferingId:guid}/content"
+@rendermode InteractiveServer
+
+@using Common.Contracts.Learning
+@using Common.Enums
+@using Common.Security
+@using WebUi.Services
+@using WebUi.Components.Pages.Admin.Academic.Learning
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(
+    Policy = Permissions.Learning.Manage)]
+
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudPaper Class="pa-4">
+    <MudStack Row="true"
+              Justify="Justify.SpaceBetween"
+              AlignItems="AlignItems.Center"
+              Class="mb-4">
+
+        <div>
+            <MudText Typo="Typo.h5">
+                مدیریت محتوای آموزشی
+            </MudText>
+
+            @if (_content is not null)
+            {
+                <MudText Typo="Typo.body2"
+                         Color="Color.Secondary">
+                    @_content.CourseTitle -
+                    @_content.SemesterTitle -
+                    گروه @_content.SectionCode
+                </MudText>
+            }
+        </div>
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenCreateModuleDialogAsync">
+            افزودن ماژول
+        </MudButton>
+        <MudButton Variant="Variant.Outlined"
+           Color="Color.Secondary"
+           StartIcon="@Icons.Material.Filled.ContentCopy"
+           Disabled="_content is null"
+           OnClick="OpenTemplateDialogAsync">
+    قالب آموزشی
+</MudButton>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center pa-8">
+            <MudProgressCircular Indeterminate="true" />
+        </div>
+    }
+    else if (_content is null ||
+             _content.Modules.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">
+            هنوز محتوای آموزشی برای این ارائه ثبت نشده است.
+        </MudAlert>
+    }
+    else
+    {
+        <MudExpansionPanels MultiExpansion="true">
+            @foreach (var module in _content.Modules)
+            {
+                <MudExpansionPanel>
+                    <TitleContent>
+                        <MudStack Row="true"
+                                  AlignItems="AlignItems.Center"
+                                  Spacing="2">
+
+                            <MudText Typo="Typo.subtitle1">
+                                @module.Order.
+                                @module.Title
+                            </MudText>
+
+                            <MudChip T="string"
+                                     Size="Size.Small"
+                                     Color="@(module.Status ==
+                                              LearningPublishStatus.Published
+                                         ? Color.Success
+                                         : Color.Warning)">
+                                @(module.Status ==
+                                  LearningPublishStatus.Published
+                                    ? "منتشرشده"
+                                    : "پیش‌نویس")
+                            </MudChip>
+                        </MudStack>
+                    </TitleContent>
+
+                    <ChildContent>
+                        @if (!string.IsNullOrWhiteSpace(
+                                module.Description))
+                        {
+                            <MudText Class="mb-3">
+                                @module.Description
+                            </MudText>
+                        }
+
+                        <MudText Typo="Typo.caption">
+                            شروع:
+                            @PersianDateTimeService.Format(
+                                module.AvailableFromUtc)
+                            |
+                            پایان:
+                            @PersianDateTimeService.Format(
+                                module.AvailableUntilUtc)
+                        </MudText>
+
+                        @if (!string.IsNullOrWhiteSpace(
+                                module.PrerequisiteModuleTitle))
+                        {
+                            <MudAlert Severity="Severity.Info"
+                                      Dense="true"
+                                      Class="my-2">
+                                پیش‌نیاز:
+                                @module.PrerequisiteModuleTitle
+                            </MudAlert>
+                        }
+
+                        <MudStack Row="true"
+                                  Wrap="Wrap.Wrap"
+                                  Spacing="1"
+                                  Class="my-3">
+
+                            <MudButton Size="Size.Small"
+                                       Variant="Variant.Outlined"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       OnClick="@(() =>
+                                           OpenCreateItemDialogAsync(module.Id))">
+                                افزودن محتوا
+                            </MudButton>
+
+                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp"
+                                           OnClick="@(() => MoveModuleAsync(module.Id, -1))" />
+
+                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown"
+                                           OnClick="@(() => MoveModuleAsync(module.Id, 1))" />
+
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                           Color="Color.Primary"
+                                           OnClick="@(() =>
+                                               OpenEditModuleDialogAsync(module))" />
+
+                            <MudIconButton Icon="@(module.Status ==
+                                                   LearningPublishStatus.Published
+                                               ? Icons.Material.Filled.Unpublished
+                                               : Icons.Material.Filled.Publish)"
+                                           Color="Color.Success"
+                                           OnClick="@(() =>
+                                               SetModulePublishedAsync(
+                                                   module.Id,
+                                                   module.Status !=
+                                                   LearningPublishStatus.Published))" />
+
+                           <MudIconButton Icon="@Icons.Material.Filled.Delete"
+               Color="Color.Error"
+               Size="Size.Small"
+               OnClick="@(() => OpenDeleteModuleDialogAsync(module))" />
+                        </MudStack>
+
+                        <MudTable Items="module.Items"
+                                  Dense="true"
+                                  Hover="true"
+                                  Bordered="true">
+
+                            <HeaderContent>
+                                <MudTh>ترتیب</MudTh>
+                                <MudTh>عنوان</MudTh>
+                                <MudTh>نوع</MudTh>
+                                <MudTh>الزامی</MudTh>
+                                <MudTh>وضعیت</MudTh>
+                                <MudTh>عملیات</MudTh>
+                            </HeaderContent>
+
+                            <RowTemplate>
+                                <MudTd>@context.Order</MudTd>
+
+                                <MudTd>@context.Title</MudTd>
+
+                                <MudTd>
+                                    @GetItemTypeTitle(context.Type)
+                                </MudTd>
+
+                                <MudTd>
+                                    @(context.IsRequired
+                                        ? "بله"
+                                        : "خیر")
+                                </MudTd>
+
+                                <MudTd>
+                                    @(context.Status ==
+                                      LearningPublishStatus.Published
+                                        ? "منتشرشده"
+                                        : "پیش‌نویس")
+                                </MudTd>
+
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() =>
+                                                       MoveItemAsync(
+                                                           context.Id,
+                                                           -1))" />
+
+                                    <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() =>
+                                                       MoveItemAsync(
+                                                           context.Id,
+                                                           1))" />
+
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                   Color="Color.Primary"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() =>
+                                                       OpenEditItemDialogAsync(
+                                                           context))" />
+
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() =>
+                                                       OpenDeleteItemDialogAsync(
+                                                           context))" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </ChildContent>
+                </MudExpansionPanel>
+            }
+        </MudExpansionPanels>
+    }
+</MudPaper>
+
+@code {
+    [Parameter]
+    public Guid OfferingId { get; set; }
+
+    private LearningContentDto? _content;
+    private bool _loading;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _content =
+                await Http.GetFromJsonAsync<LearningContentDto>(
+                    $"api/learning-content/offerings/{OfferingId}");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(
+                "دریافت محتوای آموزشی ناموفق بود.",
+                Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenCreateModuleDialogAsync()
+    {
+        var parameters =
+            new DialogParameters<LearningModuleDialog>
+            {
+                {
+                    x => x.Model,
+                    new LearningModuleFormModel
+                    {
+                        CourseOfferingId = OfferingId
+                    }
+                },
+                {
+                    x => x.Modules,
+                    _content?.Modules ?? []
+                }
+            };
+
+        await OpenDialogAsync<LearningModuleDialog>(
+            "افزودن ماژول",
+            parameters);
+    }
+    private async Task OpenTemplateDialogAsync()
+{
+    if (_content is null)
+        return;
+
+    var parameters =
+        new DialogParameters<LearningTemplateDialog>
+        {
+            {
+                x => x.CourseOfferingId,
+                OfferingId
+            },
+            {
+                x => x.CourseId,
+                _content.CourseId
+            }
+        };
+
+    await OpenDialogAsync<LearningTemplateDialog>(
+        "قالب آموزشی",
+        parameters);
+}
+
+    private async Task OpenEditModuleDialogAsync(
+        LearningModuleDto module)
+    {
+        var parameters =
+            new DialogParameters<LearningModuleDialog>
+            {
+                {
+                    x => x.Model,
+                    new LearningModuleFormModel
+                    {
+                        Id = module.Id,
+                        CourseOfferingId = OfferingId,
+                        Title = module.Title,
+                        Description = module.Description,
+                        PrerequisiteModuleId =
+                            module.PrerequisiteModuleId,
+                        AvailableFromUtc =
+                            module.AvailableFromUtc,
+                        AvailableUntilUtc =
+                            module.AvailableUntilUtc
+                    }
+                },
+                {
+                    x => x.Modules,
+                    _content?.Modules ?? []
+                }
+            };
+
+        await OpenDialogAsync<LearningModuleDialog>(
+            "ویرایش ماژول",
+            parameters);
+    }
+
+    private async Task OpenCreateItemDialogAsync(
+        Guid moduleId)
+    {
+        var parameters =
+            new DialogParameters<LearningItemDialog>
+            {
+                {
+                    x => x.Model,
+                    new LearningItemFormModel
+                    {
+                         CourseOfferingId = OfferingId,
+    LearningModuleId = moduleId,
+    IsRequired = true
+                    }
+                }
+            };
+
+        await OpenDialogAsync<LearningItemDialog>(
+            "افزودن محتوا",
+            parameters);
+    }
+
+    private async Task OpenEditItemDialogAsync(
+        LearningItemDto item)
+    {
+        var parameters =
+            new DialogParameters<LearningItemDialog>
+            {
+                {
+                    x => x.Model,
+                    new LearningItemFormModel
+                    {
+                       Id = item.Id,
+    CourseOfferingId = OfferingId,
+    LearningModuleId = item.LearningModuleId,
+    Title = item.Title,
+    Type = item.Type,
+    HtmlContent = item.HtmlContent ?? string.Empty,
+    ExternalUrl = item.ExternalUrl,
+    StorageKey = item.StorageKey,
+    HlsMasterPlaylistKey = item.HlsMasterPlaylistKey,
+    OriginalFileName = item.OriginalFileName,
+    ContentType = item.ContentType,
+    CoverStorageKey = item.CoverStorageKey,
+    DurationSeconds = item.DurationSeconds,
+    IsRequired = item.IsRequired
+                    }
+                }
+            };
+
+        await OpenDialogAsync<LearningItemDialog>(
+            "ویرایش محتوا",
+            parameters);
+    }
+
+    private async Task OpenDialogAsync<TDialog>(
+        string title,
+        DialogParameters<TDialog> parameters)
+        where TDialog : IComponent
+    {
+        var dialog = await DialogService.ShowAsync<TDialog>(
+            title,
+            parameters,
+            new DialogOptions
+            {
+                FullWidth = true,
+                MaxWidth = MaxWidth.Medium,
+                CloseOnEscapeKey = true
+            });
+
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+            await LoadAsync();
+    }
+
+    private Task MoveModuleAsync(Guid id, int direction) =>
+        PutAndReloadAsync(
+            $"api/learning-content/modules/{id}/move",
+            new { Direction = direction });
+
+    private Task MoveItemAsync(Guid id, int direction) =>
+        PutAndReloadAsync(
+            $"api/learning-content/items/{id}/move",
+            new { Direction = direction });
+
+    private Task SetModulePublishedAsync(
+        Guid id,
+        bool publish) =>
+        PutAndReloadAsync(
+            $"api/learning-content/modules/{id}/publish",
+            new { Publish = publish });
+
+  private async Task OpenDeleteModuleDialogAsync(
+    LearningModuleDto module)
+{
+    var parameters =
+        new DialogParameters<LearningModuleDeleteDialog>
+        {
+            {
+                x => x.Id,
+                module.Id
+            },
+            {
+                x => x.ItemTitle,
+                module.Title
+            }
+        };
+
+    var dialog = await DialogService.ShowAsync<
+        LearningModuleDeleteDialog>(
+        "حذف ماژول آموزشی",
+        parameters,
+        new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            FullWidth = true,
+            MaxWidth = MaxWidth.ExtraSmall
+        });
+
+    var result = await dialog.Result;
+
+    if (result is not null && !result.Canceled)
+    {
+        await LoadAsync();
+    }
+}
+
+private async Task OpenDeleteItemDialogAsync(
+    LearningItemDto item)
+{
+    var parameters =
+        new DialogParameters<LearningItemDeleteDialog>
+        {
+            {
+                x => x.Id,
+                item.Id
+            },
+            {
+                x => x.ItemTitle,
+                item.Title
+            }
+        };
+
+    var dialog = await DialogService.ShowAsync<
+        LearningItemDeleteDialog>(
+        "حذف محتوای آموزشی",
+        parameters,
+        new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            FullWidth = true,
+            MaxWidth = MaxWidth.ExtraSmall
+        });
+
+    var result = await dialog.Result;
+
+    if (result is not null && !result.Canceled)
+    {
+        await LoadAsync();
+    }
+}
+
+   
+
+    private async Task PutAndReloadAsync(
+        string url,
+        object request)
+    {
+        var response = await Http.PutAsJsonAsync(
+            url,
+            request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(
+                "انجام عملیات ناموفق بود.",
+                Severity.Error);
+
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private static string GetItemTypeTitle(
+        LearningItemType type) =>
+        type switch
+        {
+            LearningItemType.Page => "صفحه",
+            LearningItemType.File => "فایل",
+            LearningItemType.ExternalLink => "لینک",
+            LearningItemType.Video => "ویدئو",
+            _ => "-"
+        };
+}

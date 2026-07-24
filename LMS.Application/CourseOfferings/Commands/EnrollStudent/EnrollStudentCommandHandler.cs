@@ -37,25 +37,25 @@ public sealed class EnrollStudentCommandHandler
                 "کاربر احراز هویت نشده است.");
         }
 
-        var data = await (
-                from offering in _dbContext.CourseOfferings
-                join course in _dbContext.Courses
-                    on offering.CourseId equals course.Id
-                where offering.Id == request.CourseOfferingId &&
-                      offering.IsActive &&
-                      course.IsActive
-                select new
-                {
-                    Offering = offering,
-                    Course = course
-                })
+        var offeringData = await (
+            from offering in _dbContext.CourseOfferings
+            join course in _dbContext.Courses
+                on offering.CourseId equals course.Id
+            where offering.Id == request.CourseOfferingId &&
+                  offering.IsActive &&
+                  course.IsActive
+            select new
+            {
+                Offering = offering,
+                Course = course
+            })
             .SingleOrDefaultAsync(cancellationToken);
 
-        if (data is null)
+        if (offeringData is null)
         {
             return Result.NotFound(
                 "offering.not_found",
-                "گروه درسی یافت نشد یا غیرفعال است.");
+                "ارائه درس یافت نشد.");
         }
 
         var isAdmin = _currentUser.Roles.Contains(
@@ -67,88 +67,98 @@ public sealed class EnrollStudentCommandHandler
             if (!_currentUser.UserProfileId.HasValue)
             {
                 return Result.Forbidden(
-                    "profile.required",
+                    "scope.user_profile_required",
                     "پروفایل کاربر یافت نشد.");
             }
 
             var hasScope =
                 await _scopeService.HasMajorAccessAsync(
                     _currentUser.UserProfileId.Value,
-                    data.Course.MajorId,
+                    offeringData.Course.MajorId,
                     cancellationToken);
 
             if (!hasScope)
             {
                 return Result.Forbidden(
                     "scope.denied",
-                    "دسترسی به رشته مالک درس را ندارید.");
+                    "دسترسی به این رشته را ندارید.");
             }
         }
 
-        var student = await (
-                from studentProfile in _dbContext.StudentProfiles
-                join userProfile in _dbContext.UserProfiles
-                    on studentProfile.UserProfileId equals userProfile.Id
-                where studentProfile.Id == request.StudentProfileId &&
-                      userProfile.IsActive
-                select studentProfile)
+        var student = await _dbContext.StudentProfiles
+            .Where(x => x.Id == request.StudentProfileId)
+            .Select(x => new
+            {
+                x.Id,
+                x.MajorId
+            })
             .SingleOrDefaultAsync(cancellationToken);
 
         if (student is null)
         {
             return Result.NotFound(
                 "student.not_found",
-                "دانشجو یافت نشد یا غیرفعال است.");
+                "دانشجو یافت نشد.");
         }
 
-        if (!data.Course.AllowsEnrollmentFor(student.MajorId))
+        if (!offeringData.Course.CanEnrollMajor(
+                student.MajorId))
         {
             return Result.Forbidden(
-                "student.major_not_allowed",
-                "رشته دانشجو مجاز به ثبت‌نام در این درس نیست.");
-        }
-
-        var existingEnrollment =
-            await _dbContext.Enrollments.SingleOrDefaultAsync(
-                x => x.CourseOfferingId == request.CourseOfferingId &&
-                     x.StudentProfileId == request.StudentProfileId,
-                cancellationToken);
-
-        if (existingEnrollment?.IsActive == true)
-        {
-            return Result.Conflict(
-                "enrollment.exists",
-                "این دانشجو قبلاً در گروه ثبت‌نام شده است.");
+                "student.major_mismatch",
+                "این درس فقط برای دانشجویان رشته مالک قابل ثبت‌نام است.");
         }
 
         var activeEnrollmentCount =
             await _dbContext.Enrollments.CountAsync(
-                x => x.CourseOfferingId == request.CourseOfferingId &&
-                     x.IsActive,
+                x =>
+                    x.CourseOfferingId ==
+                    request.CourseOfferingId &&
+                    x.IsActive,
                 cancellationToken);
 
-        if (!data.Offering.HasAvailableCapacity(
+        if (!offeringData.Offering.HasCapacity(
                 activeEnrollmentCount))
         {
             return Result.Conflict(
                 "offering.capacity_full",
-                "ظرفیت گروه درسی تکمیل شده است.");
+                "ظرفیت گروه تکمیل شده است.");
         }
 
-        if (existingEnrollment is null)
-        {
-            var enrollment = Enrollment.Create(
-                request.CourseOfferingId,
-                request.StudentProfileId);
+        var existingEnrollment =
+            await _dbContext.Enrollments
+                .SingleOrDefaultAsync(
+                    x =>
+                        x.CourseOfferingId ==
+                        request.CourseOfferingId &&
+                        x.StudentProfileId ==
+                        request.StudentProfileId,
+                    cancellationToken);
 
-            await _dbContext.AddAsync(
-                enrollment,
-                cancellationToken);
-        }
-        else
+        if (existingEnrollment is not null)
         {
+            if (existingEnrollment.IsActive)
+            {
+                return Result.Conflict(
+                    "enrollment.exists",
+                    "دانشجو قبلاً در این گروه ثبت‌نام شده است.");
+            }
+
             existingEnrollment.Activate();
+
+            await _dbContext.SaveChangesAsync(
+                cancellationToken);
+
+            return Result.Success();
         }
+
+        var enrollment = Enrollment.Create(
+            request.CourseOfferingId,
+            request.StudentProfileId);
+
+        await _dbContext.AddAsync(
+            enrollment,
+            cancellationToken);
 
         await _dbContext.SaveChangesAsync(
             cancellationToken);

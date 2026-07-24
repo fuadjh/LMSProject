@@ -17,12 +17,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\js\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\LMS.Common\LMS.Common.csproj" />
     <ProjectReference Include="..\LMS.WebApi\LMS.WebApi.csproj" />
+
   </ItemGroup>
 
 

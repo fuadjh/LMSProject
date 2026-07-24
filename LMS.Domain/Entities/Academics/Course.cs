@@ -5,13 +5,20 @@ namespace Domain.Entities.Academics;
 
 public sealed class Course : BaseEntity
 {
-    private Course() { }
+    private Course()
+    {
+    }
 
     public Guid MajorId { get; private set; }
+
     public string Title { get; private set; } = default!;
+
     public string Code { get; private set; } = default!;
+
     public int Units { get; private set; }
+
     public CourseEnrollmentScope EnrollmentScope { get; private set; }
+
     public bool IsActive { get; private set; }
 
     public static Course Create(
@@ -19,14 +26,10 @@ public sealed class Course : BaseEntity
         string title,
         string code,
         int units,
-        CourseEnrollmentScope enrollmentScope)
+        CourseEnrollmentScope enrollmentScope =
+            CourseEnrollmentScope.OwningMajorOnly)
     {
-        Validate(
-            majorId,
-            title,
-            code,
-            units,
-            enrollmentScope);
+        Validate(majorId, title, code, units);
 
         return new Course
         {
@@ -47,12 +50,7 @@ public sealed class Course : BaseEntity
         int units,
         CourseEnrollmentScope enrollmentScope)
     {
-        Validate(
-            majorId,
-            title,
-            code,
-            units,
-            enrollmentScope);
+        Validate(majorId, title, code, units);
 
         MajorId = majorId;
         Title = title.Trim();
@@ -61,13 +59,13 @@ public sealed class Course : BaseEntity
         EnrollmentScope = enrollmentScope;
     }
 
-    public bool AllowsEnrollmentFor(Guid studentMajorId)
+    public bool CanEnrollMajor(Guid studentMajorId)
     {
         if (studentMajorId == Guid.Empty)
             return false;
 
         return EnrollmentScope == CourseEnrollmentScope.AllMajors ||
-               MajorId == studentMajorId;
+               studentMajorId == MajorId;
     }
 
     public void Activate() => IsActive = true;
@@ -78,8 +76,7 @@ public sealed class Course : BaseEntity
         Guid majorId,
         string title,
         string code,
-        int units,
-        CourseEnrollmentScope enrollmentScope)
+        int units)
     {
         if (majorId == Guid.Empty)
             throw new ArgumentException("MajorId is required.");
@@ -91,20 +88,9 @@ public sealed class Course : BaseEntity
             throw new ArgumentException("Code is required.");
 
         if (units is < 1 or > 30)
-            throw new ArgumentException(
-                "Units must be between 1 and 30.");
-
-        if (!Enum.IsDefined(
-                typeof(CourseEnrollmentScope),
-                enrollmentScope))
-        {
-            throw new ArgumentException(
-                "EnrollmentScope is invalid.");
-        }
+            throw new ArgumentException("Units must be between 1 and 30.");
     }
 
-    private static string NormalizeCode(string code)
-    {
-        return code.Trim().ToUpperInvariant();
-    }
+    private static string NormalizeCode(string code) =>
+        code.Trim().ToUpperInvariant();
 }

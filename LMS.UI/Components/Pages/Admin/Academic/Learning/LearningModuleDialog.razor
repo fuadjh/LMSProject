@@ -1,0 +1,141 @@
+﻿@using Common.Contracts.Learning
+@using WebUi.Components.Pages.Admin.Academic.Learning
+@using WebUi.Components.Shared.Forms
+
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(Model.Id.HasValue
+                ? "ویرایش ماژول"
+                : "ثبت ماژول")
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Title"
+                                  Label="عنوان ماژول"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="عنوان الزامی است." />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Description"
+                                  Label="توضیحات"
+                                  Lines="3"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSelect T="Guid?"
+                               @bind-Value="Model.PrerequisiteModuleId"
+                               Label="ماژول پیش‌نیاز"
+                               Clearable="true"
+                               Variant="Variant.Outlined">
+
+                        @foreach (var module in Modules
+                            .Where(x => x.Id != Model.Id))
+                        {
+                            <MudSelectItem T="Guid?"
+                                           Value="@((Guid?)module.Id)">
+                                @module.Title
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <PersianDateTimeInput Label="شروع دسترسی"
+                                          @bind-Value="Model.AvailableFromUtc" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <PersianDateTimeInput Label="پایان دسترسی"
+                                          @bind-Value="Model.AvailableUntilUtc" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="MudDialog.Cancel">
+            انصراف
+        </MudButton>
+
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="SaveAsync"
+                   Disabled="_saving">
+            ذخیره
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public LearningModuleFormModel Model { get; set; } = default!;
+
+    [Parameter]
+    public IReadOnlyCollection<LearningModuleDto> Modules { get; set; } = [];
+
+    private MudForm? _form;
+    private bool _saving;
+
+    private async Task SaveAsync()
+    {
+        if (_form is null || _saving)
+            return;
+
+        await _form.Validate();
+
+        if (!_form.IsValid)
+            return;
+
+        _saving = true;
+
+        try
+        {
+            var request = new
+            {
+                Model.CourseOfferingId,
+                Model.Title,
+                Model.Description,
+                Model.PrerequisiteModuleId,
+                Model.AvailableFromUtc,
+                Model.AvailableUntilUtc
+            };
+
+            var response = Model.Id.HasValue
+                ? await Http.PutAsJsonAsync(
+                    $"api/learning-content/modules/{Model.Id}",
+                    request)
+                : await Http.PostAsJsonAsync(
+                    "api/learning-content/modules",
+                    request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(
+                    "ذخیره ماژول ناموفق بود.",
+                    Severity.Error);
+
+                return;
+            }
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

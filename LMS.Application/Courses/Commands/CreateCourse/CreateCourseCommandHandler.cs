@@ -63,9 +63,9 @@ public sealed class CreateCourseCommandHandler
 
             var hasScope =
                 await _scopeService.HasMajorAccessAsync(
-                    _currentUser.UserProfileId.Value,
-                    request.MajorId,
-                    cancellationToken);
+            _currentUser.UserProfileId.Value,
+            request.MajorId,
+            cancellationToken);
 
             if (!hasScope)
             {
@@ -82,7 +82,7 @@ public sealed class CreateCourseCommandHandler
             await _dbContext.Courses.AnyAsync(
                 x => x.MajorId == request.MajorId &&
                      x.Code == normalizedCode,
-                cancellationToken);
+            cancellationToken);
 
         if (duplicateExists)
         {

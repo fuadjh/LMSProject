@@ -10,12 +10,15 @@ public sealed class SetUserScopesCommandHandler
 {
     private readonly IApplicationDbContext _dbContext;
 
-    public SetUserScopesCommandHandler(IApplicationDbContext dbContext)
+    public SetUserScopesCommandHandler(
+        IApplicationDbContext dbContext)
     {
         _dbContext = dbContext;
     }
 
-    public async Task<Result> Handle(SetUserScopesCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(
+        SetUserScopesCommand request,
+        CancellationToken cancellationToken)
     {
         var facultyIds = request.FacultyIds
             .Where(x => x != Guid.Empty)
@@ -27,35 +30,59 @@ public sealed class SetUserScopesCommandHandler
             .Distinct()
             .ToArray();
 
-        var userProfile = await _dbContext.UserProfiles
-            .Include(x => x.FacultyScopes)
-            .Include(x => x.MajorScopes)
-            .SingleOrDefaultAsync(x => x.Id == request.UserProfileId, cancellationToken);
+        var userProfile =
+            await _dbContext.UserProfiles
+                .Include(x => x.FacultyScopes)
+                .Include(x => x.MajorScopes)
+                .SingleOrDefaultAsync(
+                    x => x.Id == request.UserProfileId,
+                    cancellationToken);
 
         if (userProfile is null)
-            throw new InvalidOperationException("User profile not found.");
+        {
+            return Result.NotFound(
+                "user_profile.not_found",
+                "پروفایل کاربر یافت نشد.");
+        }
 
-        var existingFacultyIds = await _dbContext.Faculties
-            .Where(x => facultyIds.Contains(x.Id) && x.IsActive)
-            .Select(x => x.Id)
-            .ToListAsync(cancellationToken);
+        var validFacultyIds =
+            await _dbContext.Faculties
+                .Where(x =>
+                    facultyIds.Contains(x.Id) &&
+                    x.IsActive)
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
 
-        var invalidFacultyIds = facultyIds.Except(existingFacultyIds).ToArray();
-        if (invalidFacultyIds.Any())
-            throw new InvalidOperationException("One or more faculty ids are invalid.");
+        if (facultyIds.Except(validFacultyIds).Any())
+        {
+            return Result.Invalid(
+                Error.Validation(
+                    "facultyIds",
+                    "یک یا چند دانشکده معتبر نیست."));
+        }
 
-        var existingMajors = await _dbContext.Majors
-            .Where(x => majorIds.Contains(x.Id) && x.IsActive)
-            .Select(x => new { x.Id, x.FacultyId })
-            .ToListAsync(cancellationToken);
+        var validMajorIds =
+            await _dbContext.Majors
+                .Where(x =>
+                    majorIds.Contains(x.Id) &&
+                    x.IsActive)
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
 
-        var invalidMajorIds = majorIds.Except(existingMajors.Select(x => x.Id)).ToArray();
-        if (invalidMajorIds.Any())
-            throw new InvalidOperationException("One or more major ids are invalid.");
+        if (majorIds.Except(validMajorIds).Any())
+        {
+            return Result.Invalid(
+                Error.Validation(
+                    "majorIds",
+                    "یک یا چند رشته معتبر نیست."));
+        }
 
         userProfile.SetFacultyScopes(facultyIds);
         userProfile.SetMajorScopes(majorIds);
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _dbContext.SaveChangesAsync(
+            cancellationToken);
+
+        return Result.Success();
     }
 }

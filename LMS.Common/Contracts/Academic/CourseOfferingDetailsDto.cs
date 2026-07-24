@@ -1,5 +1,3 @@
-using Common.Enums;
-
 namespace Common.Contracts.Academic;
 
 public sealed record CourseOfferingDetailsDto(
@@ -7,14 +5,14 @@ public sealed record CourseOfferingDetailsDto(
     Guid CourseId,
     Guid SemesterId,
     Guid MajorId,
-    string MajorTitle,
     string CourseTitle,
     string CourseCode,
+    int CourseUnits,
     string SemesterTitle,
-    string SectionCode,
-    int Capacity,
-    int ActiveEnrollmentCount,
-    CourseEnrollmentScope EnrollmentScope,
     Guid? InstructorProfileId,
     string? InstructorName,
+    string SectionCode,
+    int Capacity,
+    DateTime StartsAtUtc,
+    DateTime EndsAtUtc,
     bool IsActive);

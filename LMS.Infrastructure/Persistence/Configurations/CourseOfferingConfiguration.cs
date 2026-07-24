@@ -4,23 +4,39 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Infrastructure.Persistence.Configurations;
 
-public sealed class CourseOfferingConfiguration : IEntityTypeConfiguration<CourseOffering>
+public sealed class CourseOfferingConfiguration
+    : IEntityTypeConfiguration<CourseOffering>
 {
-    public void Configure(EntityTypeBuilder<CourseOffering> builder)
+    public void Configure(
+        EntityTypeBuilder<CourseOffering> builder)
     {
         builder.ToTable("CourseOfferings");
 
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.CourseId).IsRequired();
-        builder.Property(x => x.SemesterId).IsRequired();
-        builder.Property(x => x.CreatedAtUtc).IsRequired();
-        builder.Property(x => x.IsActive).IsRequired();
+        builder.Property(x => x.CourseId)
+            .IsRequired();
+
+        builder.Property(x => x.SemesterId)
+            .IsRequired();
+
         builder.Property(x => x.SectionCode)
-    .HasMaxLength(20)
-    .IsRequired();
+            .HasMaxLength(20)
+            .IsRequired();
 
         builder.Property(x => x.Capacity)
+            .IsRequired();
+
+        builder.Property(x => x.StartsAtUtc)
+            .IsRequired();
+
+        builder.Property(x => x.EndsAtUtc)
+            .IsRequired();
+
+        builder.Property(x => x.CreatedAtUtc)
+            .IsRequired();
+
+        builder.Property(x => x.IsActive)
             .IsRequired();
 
         builder.HasIndex(x => new
@@ -29,6 +45,5 @@ public sealed class CourseOfferingConfiguration : IEntityTypeConfiguration<Cours
             x.SemesterId,
             x.SectionCode
         }).IsUnique();
-      
     }
 }

@@ -1,0 +1,56 @@
+﻿@using WebUi.Services
+@namespace WebUi.Components.Shared.Forms
+<MudTextField T="string"
+              Value="_text"
+              ValueChanged="OnTextChangedAsync"
+              Label="@Label"
+              Placeholder="مثال: 1405/07/15 08:30"
+              Variant="Variant.Outlined"
+              Margin="Margin.Dense"
+              Disabled="Disabled"
+              Error="@_hasError"
+              ErrorText="تاریخ شمسی معتبر نیست." />
+
+@code {
+    [Parameter]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public DateTime? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<DateTime?> ValueChanged { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    private string _text = string.Empty;
+    private bool _hasError;
+
+    protected override void OnParametersSet()
+    {
+        _text = Value.HasValue
+            ? PersianDateTimeService.Format(Value)
+            : string.Empty;
+    }
+
+    private async Task OnTextChangedAsync(string value)
+    {
+        _text = value ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_text))
+        {
+            _hasError = false;
+            await ValueChanged.InvokeAsync(null);
+            return;
+        }
+
+        var parsed =
+            PersianDateTimeService.ParseToUtc(_text);
+
+        _hasError = !parsed.HasValue;
+
+        if (parsed.HasValue)
+            await ValueChanged.InvokeAsync(parsed);
+    }
+}

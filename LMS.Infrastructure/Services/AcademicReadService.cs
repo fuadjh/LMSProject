@@ -1,5 +1,4 @@
 using Application.Abstractions.Read;
-using Application.Common.Models;
 using Common.Contracts.Academic;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -15,140 +14,230 @@ public sealed class AcademicReadService : IAcademicReadService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyCollection<CourseLookupDto>> GetCoursesAsync(Guid? majorId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<CourseLookupDto>> GetCoursesAsync(
+        Guid? majorId,
+        CancellationToken cancellationToken = default)
     {
-        var query = _dbContext.Courses.Where(x => x.IsActive);
+        var query = _dbContext.Courses
+            .AsNoTracking()
+            .Where(x => x.IsActive);
 
         if (majorId.HasValue)
+        {
             query = query.Where(x => x.MajorId == majorId.Value);
+        }
 
         return await query
             .OrderBy(x => x.Title)
-            .Select(x => new CourseLookupDto(x.Id, x.Title, x.Code, x.Units, x.MajorId))
+            .Select(x => new CourseLookupDto(
+                x.Id,
+                x.Title,
+                x.Code,
+                x.Units,
+                x.MajorId))
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<SemesterLookupDto>> GetSemestersAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<SemesterLookupDto>> GetSemestersAsync(
+        CancellationToken cancellationToken = default)
     {
         return await _dbContext.Semesters
+            .AsNoTracking()
             .Where(x => x.IsActive)
             .OrderByDescending(x => x.StartsAtUtc)
-            .Select(x => new SemesterLookupDto(x.Id, x.Title, x.StartsAtUtc, x.EndsAtUtc))
+            .Select(x => new SemesterLookupDto(
+                x.Id,
+                x.Title,
+                x.StartsAtUtc,
+                x.EndsAtUtc))
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<CourseOfferingLookupDto>> GetCourseOfferingsAsync(Guid? semesterId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<CourseOfferingLookupDto>> GetCourseOfferingsAsync(
+        Guid? semesterId,
+        CancellationToken cancellationToken = default)
     {
         var query =
-            from o in _dbContext.CourseOfferings
-            join c in _dbContext.Courses on o.CourseId equals c.Id
-            join s in _dbContext.Semesters on o.SemesterId equals s.Id
-            join i in _dbContext.InstructorProfiles on o.InstructorProfileId equals i.Id into instructorJoin
+            from offering in _dbContext.CourseOfferings.AsNoTracking()
+
+            join course in _dbContext.Courses.AsNoTracking()
+                on offering.CourseId equals course.Id
+
+            join semester in _dbContext.Semesters.AsNoTracking()
+                on offering.SemesterId equals semester.Id
+
+            join instructor in _dbContext.InstructorProfiles.AsNoTracking()
+                on offering.InstructorProfileId equals instructor.Id
+                into instructorJoin
+
             from instructor in instructorJoin.DefaultIfEmpty()
-            join up in _dbContext.UserProfiles on instructor.UserProfileId equals up.Id into userProfileJoin
-            from profile in userProfileJoin.DefaultIfEmpty()
-            where o.IsActive
+
+            join profile in _dbContext.UserProfiles.AsNoTracking()
+                on instructor.UserProfileId equals profile.Id
+                into profileJoin
+
+            from profile in profileJoin.DefaultIfEmpty()
+
+            where offering.IsActive
+
             select new CourseOfferingLookupDto(
-                o.Id,
-                c.Id,
-                s.Id,
-                c.MajorId,
-                c.Title,
-                s.Title,
-                profile == null ? null : profile.FirstName + " " + profile.LastName,
-                o.InstructorProfileId);
+                offering.Id,
+                course.Id,
+                semester.Id,
+                course.MajorId,
+                course.Title,
+                semester.Title,
+                profile == null
+                    ? null
+                    : profile.FirstName + " " + profile.LastName,
+                offering.InstructorProfileId,
+                offering.SectionCode,
+                offering.Capacity,
+                offering.StartsAtUtc,
+                offering.EndsAtUtc,
+                offering.IsActive);
 
         if (semesterId.HasValue)
-            query = query.Where(x => x.SemesterId == semesterId.Value);
+        {
+            query = query.Where(
+                x => x.SemesterId == semesterId.Value);
+        }
 
         return await query
             .OrderBy(x => x.SemesterTitle)
             .ThenBy(x => x.CourseTitle)
+            .ThenBy(x => x.SectionCode)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<CourseOfferingDetailsDto?> GetCourseOfferingAsync(Guid offeringId, CancellationToken cancellationToken = default)
+    public async Task<CourseOfferingDetailsDto?> GetCourseOfferingAsync(
+        Guid offeringId,
+        CancellationToken cancellationToken = default)
     {
         var data =
             await (
-                from o in _dbContext.CourseOfferings
-                join c in _dbContext.Courses on o.CourseId equals c.Id
-                join s in _dbContext.Semesters on o.SemesterId equals s.Id
-                join i in _dbContext.InstructorProfiles on o.InstructorProfileId equals i.Id into instructorJoin
+                from offering in _dbContext.CourseOfferings.AsNoTracking()
+
+                join course in _dbContext.Courses.AsNoTracking()
+                    on offering.CourseId equals course.Id
+
+                join semester in _dbContext.Semesters.AsNoTracking()
+                    on offering.SemesterId equals semester.Id
+
+                join instructor in _dbContext.InstructorProfiles.AsNoTracking()
+                    on offering.InstructorProfileId equals instructor.Id
+                    into instructorJoin
+
                 from instructor in instructorJoin.DefaultIfEmpty()
-                join up in _dbContext.UserProfiles on instructor.UserProfileId equals up.Id into userProfileJoin
-                from profile in userProfileJoin.DefaultIfEmpty()
-                where o.Id == offeringId
+
+                join profile in _dbContext.UserProfiles.AsNoTracking()
+                    on instructor.UserProfileId equals profile.Id
+                    into profileJoin
+
+                from profile in profileJoin.DefaultIfEmpty()
+
+                where offering.Id == offeringId
+
                 select new CourseOfferingDetailsDto(
-                    o.Id,
-                    c.Id,
-                    s.Id,
-                    c.MajorId,
-                    c.Title,
-                    s.Title,
-                    o.InstructorProfileId,
-                    profile == null ? null : profile.FirstName + " " + profile.LastName
-                ))
+                    offering.Id,
+                    course.Id,
+                    semester.Id,
+                    course.MajorId,
+                    course.Title,
+                    course.Code,
+                    course.Units,
+                    semester.Title,
+                    offering.InstructorProfileId,
+                    profile == null
+                        ? null
+                        : profile.FirstName + " " + profile.LastName,
+                    offering.SectionCode,
+                    offering.Capacity,
+                    offering.StartsAtUtc,
+                    offering.EndsAtUtc,
+                    offering.IsActive))
             .SingleOrDefaultAsync(cancellationToken);
 
         return data;
     }
 
-    public async Task<IReadOnlyCollection<InstructorLookupDto>> SearchInstructorsAsync(string? search, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<InstructorLookupDto>> SearchInstructorsAsync(
+        string? search,
+        CancellationToken cancellationToken = default)
     {
         var query =
-            from i in _dbContext.InstructorProfiles
-            join p in _dbContext.UserProfiles on i.UserProfileId equals p.Id
-            select new { i, p };
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var s = search.Trim();
-            query = query.Where(x =>
-                x.i.PersonnelCode.Contains(s) ||
-                (x.p.FirstName + " " + x.p.LastName).Contains(s));
-        }
-
-        return await query
-            .OrderBy(x => x.p.FirstName)
-            .ThenBy(x => x.p.LastName)
-            .Take(50)
-            .Select(x => new InstructorLookupDto(
-                x.i.Id,
-                x.p.Id,
-                x.p.FirstName + " " + x.p.LastName,
-                x.i.PersonnelCode))
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyCollection<StudentLookupDto>> SearchStudentsAsync(Guid? majorId, string? search, CancellationToken cancellationToken = default)
-    {
-        var query =
-            from s in _dbContext.StudentProfiles
-            join p in _dbContext.UserProfiles on s.UserProfileId equals p.Id
-            select new { s, p };
-
-        if (majorId.HasValue)
-            query = query.Where(x => x.s.MajorId == majorId.Value);
+            from instructor in _dbContext.InstructorProfiles.AsNoTracking()
+            join profile in _dbContext.UserProfiles.AsNoTracking()
+                on instructor.UserProfileId equals profile.Id
+            select new
+            {
+                Instructor = instructor,
+                Profile = profile
+            };
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var text = search.Trim();
+
             query = query.Where(x =>
-                x.s.StudentNumber.Contains(text) ||
-                (x.p.FirstName + " " + x.p.LastName).Contains(text));
+                x.Instructor.PersonnelCode.Contains(text) ||
+                (x.Profile.FirstName + " " + x.Profile.LastName)
+                    .Contains(text));
         }
 
         return await query
-            .OrderBy(x => x.p.FirstName)
-            .ThenBy(x => x.p.LastName)
+            .OrderBy(x => x.Profile.FirstName)
+            .ThenBy(x => x.Profile.LastName)
+            .Take(50)
+            .Select(x => new InstructorLookupDto(
+                x.Instructor.Id,
+                x.Profile.Id,
+                x.Profile.FirstName + " " + x.Profile.LastName,
+                x.Instructor.PersonnelCode))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<StudentLookupDto>> SearchStudentsAsync(
+        Guid? majorId,
+        string? search,
+        CancellationToken cancellationToken = default)
+    {
+        var query =
+            from student in _dbContext.StudentProfiles.AsNoTracking()
+            join profile in _dbContext.UserProfiles.AsNoTracking()
+                on student.UserProfileId equals profile.Id
+            select new
+            {
+                Student = student,
+                Profile = profile
+            };
+
+        if (majorId.HasValue)
+        {
+            query = query.Where(x =>
+                x.Student.MajorId == majorId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var text = search.Trim();
+
+            query = query.Where(x =>
+                x.Student.StudentNumber.Contains(text) ||
+                (x.Profile.FirstName + " " + x.Profile.LastName)
+                    .Contains(text));
+        }
+
+        return await query
+            .OrderBy(x => x.Profile.FirstName)
+            .ThenBy(x => x.Profile.LastName)
             .Take(100)
             .Select(x => new StudentLookupDto(
-                x.s.Id,
-                x.p.Id,
-                x.p.FirstName + " " + x.p.LastName,
-                x.s.StudentNumber,
-                x.s.MajorId))
+                x.Student.Id,
+                x.Profile.Id,
+                x.Profile.FirstName + " " + x.Profile.LastName,
+                x.Student.StudentNumber,
+                x.Student.MajorId))
             .ToListAsync(cancellationToken);
     }
 }

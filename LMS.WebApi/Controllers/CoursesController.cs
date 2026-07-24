@@ -1,6 +1,6 @@
 using Application.Courses.Commands.CreateCourse;
 using Application.Courses.Queries.GetCourses;
-
+using Common.Enums;
 using Common.Security;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -30,14 +30,26 @@ public sealed class CoursesController : ControllerBase
 
     [HttpPost]
     [HasPermission(Permissions.Courses.Manage)]
-    public async Task<IActionResult> Create(CreateCourseRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(
+      CreateCourseRequest request,
+      CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(
-            new CreateCourseCommand(request.MajorId, request.Title, request.Code, request.Units),
+            new CreateCourseCommand(
+                request.MajorId,
+                request.Title,
+                request.Code,
+                request.Units,
+                request.EnrollmentScope),
             cancellationToken);
 
         return result.ToActionResult(this);
     }
 }
 
-public sealed record CreateCourseRequest(Guid MajorId, string Title, string Code, int Units);
+public sealed record CreateCourseRequest(
+    Guid MajorId,
+    string Title,
+    string Code,
+    int Units,
+    CourseEnrollmentScope EnrollmentScope);

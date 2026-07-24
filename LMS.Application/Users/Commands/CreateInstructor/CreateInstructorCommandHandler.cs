@@ -23,47 +23,89 @@ public sealed class CreateInstructorCommandHandler
     }
 
     public async Task<Result<Guid>> Handle(
-    CreateInstructorCommand request,
-    CancellationToken cancellationToken)
+        CreateInstructorCommand request,
+        CancellationToken cancellationToken)
     {
-        if (await _identityService.ExistsByUserNameAsync(request.UserName, cancellationToken))
-            throw new InvalidOperationException("Username already exists.");
+        if (await _identityService.ExistsByUserNameAsync(
+                request.UserName,
+                cancellationToken))
+        {
+            return Result<Guid>.Conflict(
+                "user.username_exists",
+                "نام کاربری تکراری است.");
+        }
 
-        if (await _identityService.ExistsByEmailAsync(request.Email, cancellationToken))
-            throw new InvalidOperationException("Email already exists.");
+        if (await _identityService.ExistsByEmailAsync(
+                request.Email,
+                cancellationToken))
+        {
+            return Result<Guid>.Conflict(
+                "user.email_exists",
+                "ایمیل تکراری است.");
+        }
 
-        var personnelCodeExists = await _dbContext.InstructorProfiles
-            .AnyAsync(x => x.PersonnelCode == request.PersonnelCode, cancellationToken);
+        var codeExists =
+            await _dbContext.InstructorProfiles.AnyAsync(
+                x =>
+                    x.PersonnelCode ==
+                    request.PersonnelCode.Trim(),
+                cancellationToken);
 
-        if (personnelCodeExists)
-            throw new InvalidOperationException("Personnel code already exists.");
+        if (codeExists)
+        {
+            return Result<Guid>.Conflict(
+                "instructor.code_exists",
+                "کد پرسنلی تکراری است.");
+        }
 
-        await using var tx = await _dbContext.BeginTransactionAsync(cancellationToken);
+        await using var transaction =
+            await _dbContext.BeginTransactionAsync(
+                cancellationToken);
 
         try
         {
-            var authUserId = await _identityService.CreateUserAsync(
-                request.UserName,
-                request.Email,
-                request.Password,
-                new[] { RoleNames.Instructor },
+            var authUserId =
+                await _identityService.CreateUserAsync(
+                    request.UserName.Trim(),
+                    request.Email.Trim(),
+                    request.Password,
+                    [RoleNames.Instructor],
+                    cancellationToken);
+
+            var userProfile = UserProfile.Create(
+                authUserId,
+                request.FirstName,
+                request.LastName);
+
+            var instructorProfile =
+                InstructorProfile.Create(
+                    userProfile.Id,
+                    request.PersonnelCode);
+
+            await _dbContext.AddAsync(
+                userProfile,
                 cancellationToken);
 
-            var userProfile = UserProfile.Create(authUserId, request.FirstName, request.LastName);
-            var instructorProfile = InstructorProfile.Create(userProfile.Id, request.PersonnelCode);
+            await _dbContext.AddAsync(
+                instructorProfile,
+                cancellationToken);
 
-            await _dbContext.AddAsync(userProfile, cancellationToken);
-            await _dbContext.AddAsync(instructorProfile, cancellationToken);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _dbContext.SaveChangesAsync(
+                cancellationToken);
 
-            await tx.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(
+                cancellationToken);
 
-            return userProfile.Id;
+            return Result<Guid>.Success(userProfile.Id);
         }
-        catch
+        catch (Exception ex)
         {
-            await tx.RollbackAsync(cancellationToken);
-            throw;
+            await transaction.RollbackAsync(
+                cancellationToken);
+
+            return Result<Guid>.Failure(
+                "instructor.create_failed",
+                ex.Message);
         }
     }
 }
