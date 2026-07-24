@@ -9,7 +9,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Application.Users.Commands.CreateEducationExpert;
 
 public sealed class CreateEducationExpertCommandHandler
-    : IRequestHandler<CreateEducationExpertCommand, Result<Guid>>
+    : IRequestHandler<
+        CreateEducationExpertCommand,
+        Result<Guid>>
 {
     private readonly IIdentityService _identityService;
     private readonly IApplicationDbContext _dbContext;
@@ -22,46 +24,91 @@ public sealed class CreateEducationExpertCommandHandler
         _dbContext = dbContext;
     }
 
-    public async Task<Result<Guid>> Handle(CreateEducationExpertCommand request, CancellationToken cancellationToken)
+    public async Task<Result<Guid>> Handle(
+        CreateEducationExpertCommand request,
+        CancellationToken cancellationToken)
     {
-        if (await _identityService.ExistsByUserNameAsync(request.UserName, cancellationToken))
-            throw new InvalidOperationException("Username already exists.");
+        if (await _identityService.ExistsByUserNameAsync(
+                request.UserName,
+                cancellationToken))
+        {
+            return Result<Guid>.Conflict(
+                "user.username_exists",
+                "نام کاربری تکراری است.");
+        }
 
-        if (await _identityService.ExistsByEmailAsync(request.Email, cancellationToken))
-            throw new InvalidOperationException("Email already exists.");
+        if (await _identityService.ExistsByEmailAsync(
+                request.Email,
+                cancellationToken))
+        {
+            return Result<Guid>.Conflict(
+                "user.email_exists",
+                "ایمیل تکراری است.");
+        }
 
-        var employeeCodeExists = await _dbContext.EducationExpertProfiles
-            .AnyAsync(x => x.EmployeeCode == request.EmployeeCode, cancellationToken);
+        var codeExists =
+            await _dbContext.EducationExpertProfiles
+                .AnyAsync(
+                    x =>
+                        x.EmployeeCode ==
+                        request.EmployeeCode.Trim(),
+                    cancellationToken);
 
-        if (employeeCodeExists)
-            throw new InvalidOperationException("Employee code already exists.");
+        if (codeExists)
+        {
+            return Result<Guid>.Conflict(
+                "expert.code_exists",
+                "کد کارمندی تکراری است.");
+        }
 
-        await using var tx = await _dbContext.BeginTransactionAsync(cancellationToken);
+        await using var transaction =
+            await _dbContext.BeginTransactionAsync(
+                cancellationToken);
 
         try
         {
-            var authUserId = await _identityService.CreateUserAsync(
-                request.UserName,
-                request.Email,
-                request.Password,
-                new[] { RoleNames.EducationExpert },
+            var authUserId =
+                await _identityService.CreateUserAsync(
+                    request.UserName.Trim(),
+                    request.Email.Trim(),
+                    request.Password,
+                    [RoleNames.EducationExpert],
+                    cancellationToken);
+
+            var userProfile = UserProfile.Create(
+                authUserId,
+                request.FirstName,
+                request.LastName);
+
+            var expertProfile =
+                EducationExpertProfile.Create(
+                    userProfile.Id,
+                    request.EmployeeCode);
+
+            await _dbContext.AddAsync(
+                userProfile,
                 cancellationToken);
 
-            var userProfile = UserProfile.Create(authUserId, request.FirstName, request.LastName);
-            var expertProfile = EducationExpertProfile.Create(userProfile.Id, request.EmployeeCode);
+            await _dbContext.AddAsync(
+                expertProfile,
+                cancellationToken);
 
-            await _dbContext.AddAsync(userProfile, cancellationToken);
-            await _dbContext.AddAsync(expertProfile, cancellationToken);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _dbContext.SaveChangesAsync(
+                cancellationToken);
 
-            await tx.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(
+                cancellationToken);
 
-            return userProfile.Id;
+            return Result<Guid>.Success(userProfile.Id);
         }
-        catch
+        catch (Exception ex)
         {
-            await tx.RollbackAsync(cancellationToken);
-            throw;
+            await transaction.RollbackAsync(
+                cancellationToken);
+
+            return Result<Guid>.Failure(
+                "education_expert.create_failed",
+                ex.Message);
         }
     }
 }

@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace LMS.Application.CourseOfferings.Commands.CreateCourseOffering;
+namespace Application.CourseOfferings.Commands.CreateCourseOffering;
 
 public sealed class CreateCourseOfferingCommandValidator
     : AbstractValidator<CreateCourseOfferingCommand>
@@ -16,5 +16,11 @@ public sealed class CreateCourseOfferingCommandValidator
 
         RuleFor(x => x.Capacity)
             .InclusiveBetween(1, 500);
+
+        RuleFor(x => x.EndsAtUtc)
+            .GreaterThan(x => x.StartsAtUtc)
+            .When(x =>
+                x.StartsAtUtc.HasValue &&
+                x.EndsAtUtc.HasValue);
     }
 }

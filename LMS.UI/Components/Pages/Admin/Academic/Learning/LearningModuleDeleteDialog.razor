@@ -1,0 +1,56 @@
+﻿@using MudBlazor
+@using WebUi.Components.Crud
+
+@inherits CrudDeleteDialogBase<Guid>
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            حذف ماژول آموزشی
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudText>
+            آیا از حذف ماژول «@ItemTitle» مطمئن هستید؟
+        </MudText>
+
+        <MudText Typo="Typo.caption"
+                 Color="Color.Error"
+                 Class="mt-2">
+            با حذف ماژول، تمام محتواهای وابسته به آن نیز حذف خواهند شد.
+        </MudText>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Default"
+                   Disabled="IsBusy"
+                   OnClick="CancelDialog">
+            انصراف
+        </MudButton>
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Error"
+                   Disabled="IsBusy"
+                   OnClick="DeleteAsync">
+
+            @if (IsBusy)
+            {
+                <MudProgressCircular Indeterminate="true"
+                                     Size="Size.Small"
+                                     Class="me-2" />
+            }
+
+            حذف ماژول
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    protected override string GetDeleteEndpoint(Guid id) =>
+        $"api/learning-content/modules/{id}";
+
+    protected override string DeleteSuccessMessage =>
+        "ماژول آموزشی با موفقیت حذف شد.";
+}

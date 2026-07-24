@@ -8,4 +8,9 @@ public sealed record CourseOfferingLookupDto(
     string CourseTitle,
     string SemesterTitle,
     string? InstructorName,
-    Guid? InstructorProfileId);
+    Guid? InstructorProfileId,
+    string SectionCode,
+    int Capacity,
+    DateTime StartsAtUtc,
+    DateTime EndsAtUtc,
+    bool IsActive);

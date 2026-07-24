@@ -1,0 +1,63 @@
+﻿@implements IAsyncDisposable
+@inject IJSRuntime JsRuntime
+@namespace WebUi.Components.Shared.Forms
+<div id="@_editorId"
+     class="app-rich-editor"
+     dir="rtl">
+</div>
+
+@code {
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    private readonly string _editorId =
+        $"editor-{Guid.NewGuid():N}";
+
+    private DotNetObjectReference<RichTextEditor>? _reference;
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        _reference =
+            DotNetObjectReference.Create(this);
+
+        await JsRuntime.InvokeVoidAsync(
+            "appQuill.create",
+            _editorId,
+            Value,
+            ReadOnly,
+            _reference);
+    }
+
+    [JSInvokable]
+    public Task OnContentChanged(string html)
+    {
+        Value = html ?? string.Empty;
+        return ValueChanged.InvokeAsync(Value);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync(
+                "appQuill.dispose",
+                _editorId);
+        }
+        catch
+        {
+            // Component is being disposed.
+        }
+
+        _reference?.Dispose();
+    }
+}

@@ -1,0 +1,306 @@
+﻿@page "/learning/offering/{OfferingId:guid}"
+@rendermode InteractiveServer
+
+@using Common.Contracts.Learning
+@using Common.Enums
+@using Common.Security
+
+@using WebUi.Services
+
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(
+    Policy = Permissions.Learning.View)]
+
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>محتوای آموزشی</PageTitle>
+
+<MudPaper Class="pa-4">
+    @if (_loading)
+    {
+        <div class="d-flex justify-center pa-8">
+            <MudProgressCircular Indeterminate="true" />
+        </div>
+    }
+    else if (_content is null)
+    {
+        <MudAlert Severity="Severity.Error">
+            دریافت محتوای آموزشی ناموفق بود.
+        </MudAlert>
+    }
+    else
+    {
+        <MudStack Spacing="1"
+                  Class="mb-4">
+
+            <MudText Typo="Typo.h5">
+                @_content.CourseTitle
+            </MudText>
+
+            <MudText Typo="Typo.body2"
+                     Color="Color.Secondary">
+                @_content.SemesterTitle -
+                گروه @_content.SectionCode
+            </MudText>
+        </MudStack>
+
+        @if (_content.Modules.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info">
+                محتوایی برای این درس منتشر نشده است.
+            </MudAlert>
+        }
+        else
+        {
+            <MudExpansionPanels MultiExpansion="false">
+                @foreach (var module in _content.Modules)
+                {
+                    <MudExpansionPanel Disabled="@module.IsLocked">
+                        <TitleContent>
+                            <MudStack Row="true"
+                                      AlignItems="AlignItems.Center">
+
+                                <MudText Typo="Typo.subtitle1">
+                                    @module.Order.
+                                    @module.Title
+                                </MudText>
+
+                                @if (module.IsLocked)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Lock"
+                                             Color="Color.Warning" />
+                                }
+                            </MudStack>
+                        </TitleContent>
+
+                        <ChildContent>
+                            @if (!string.IsNullOrWhiteSpace(
+                                    module.Description))
+                            {
+                                <MudText Class="mb-3">
+                                    @module.Description
+                                </MudText>
+                            }
+
+                            @if (module.AvailableUntilUtc.HasValue)
+                            {
+                                <MudText Typo="Typo.caption"
+                                         Color="Color.Secondary">
+                                    پایان دسترسی:
+                                    @PersianDateTimeService.Format(
+                                        module.AvailableUntilUtc)
+                                </MudText>
+                            }
+
+                            <MudList T="LearningItemDto">
+                                @foreach (var item in module.Items)
+                                {
+                                    <MudListItem T="LearningItemDto"
+                                                 Value="item"
+                                                 OnClick="@(() =>
+                                                     SelectItemAsync(item))">
+
+                                        <MudStack Row="true"
+                                                  AlignItems="AlignItems.Center"
+                                                  Justify="Justify.SpaceBetween"
+                                                  Style="width:100%;">
+
+                                            <MudStack Row="true"
+                                                      AlignItems="AlignItems.Center">
+
+                                                <MudIcon Icon="@GetItemIcon(item.Type)" />
+
+                                                <MudText>
+                                                    @item.Title
+                                                </MudText>
+
+                                                @if (item.IsRequired)
+                                                {
+                                                    <MudChip T="string"
+                                                             Size="Size.Small"
+                                                             Color="Color.Info">
+                                                        الزامی
+                                                    </MudChip>
+                                                }
+                                            </MudStack>
+
+                                            @if (item.IsCompleted)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
+                                                         Color="Color.Success" />
+                                            }
+                                        </MudStack>
+                                    </MudListItem>
+                                }
+                            </MudList>
+                        </ChildContent>
+                    </MudExpansionPanel>
+                }
+            </MudExpansionPanels>
+        }
+    }
+</MudPaper>
+
+@if (_selectedItem is not null)
+{
+    <MudPaper Class="pa-4 mt-4">
+        <MudText Typo="Typo.h6"
+                 Class="mb-4">
+            @_selectedItem.Title
+        </MudText>
+
+        @switch (_selectedItem.Type)
+        {
+            case LearningItemType.Page:
+                <div class="learning-html-content"
+                     dir="rtl">
+                    @((MarkupString)(_selectedItem.HtmlContent
+                        ?? string.Empty))
+                </div>
+                break;
+
+            case LearningItemType.ExternalLink:
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.OpenInNew"
+                           OnClick="OpenExternalLink">
+                    بازکردن لینک
+                </MudButton>
+                break;
+
+            case LearningItemType.File:
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="OpenFile">
+                    دریافت فایل
+                </MudButton>
+                break;
+
+            case LearningItemType.Video:
+                <PrivateHlsPlayer LearningItemId="_selectedItem.Id"
+                                  StartPositionSeconds="_selectedItem.LastPositionSeconds"
+                                  CoverUrl="@GetCoverUrl(_selectedItem)" />
+                break;
+        }
+    </MudPaper>
+}
+
+@code {
+    [Parameter]
+    public Guid OfferingId { get; set; }
+
+    private LearningContentDto? _content;
+    private LearningItemDto? _selectedItem;
+    private bool _loading;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            _content =
+                await Http.GetFromJsonAsync<LearningContentDto>(
+                    $"api/learning-content/offerings/{OfferingId}");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(
+                "دریافت محتوای آموزشی ناموفق بود.",
+                Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SelectItemAsync(
+        LearningItemDto item)
+    {
+        var response = await Http.PostAsync(
+            $"api/learning-content/items/{item.Id}/open",
+            null);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add(
+                await ApiErrorReader.ReadErrorAsync(response),
+                Severity.Error);
+
+            return;
+        }
+
+        _selectedItem = item;
+
+        if (item.Type != LearningItemType.Video)
+            await LoadAsync();
+    }
+
+    private void OpenExternalLink()
+    {
+        if (string.IsNullOrWhiteSpace(
+                _selectedItem?.ExternalUrl))
+        {
+            return;
+        }
+
+        Navigation.NavigateTo(
+            _selectedItem.ExternalUrl,
+            forceLoad: true);
+    }
+
+    private void OpenFile()
+    {
+        if (_selectedItem is null)
+            return;
+
+        var url = new Uri(
+            Http.BaseAddress!,
+            $"api/learning-content/items/{_selectedItem.Id}/file")
+            .ToString();
+
+        Navigation.NavigateTo(url, forceLoad: true);
+    }
+
+    private string? GetCoverUrl(
+        LearningItemDto item)
+    {
+        if (string.IsNullOrWhiteSpace(
+                item.CoverStorageKey))
+        {
+            return null;
+        }
+
+        return new Uri(
+            Http.BaseAddress!,
+            $"api/learning-content/items/{item.Id}/cover")
+            .ToString();
+    }
+
+    private static string GetItemIcon(
+        LearningItemType type) =>
+        type switch
+        {
+            LearningItemType.Page =>
+                Icons.Material.Filled.Article,
+
+            LearningItemType.File =>
+                Icons.Material.Filled.AttachFile,
+
+            LearningItemType.ExternalLink =>
+                Icons.Material.Filled.Link,
+
+            LearningItemType.Video =>
+                Icons.Material.Filled.PlayCircle,
+
+            _ => Icons.Material.Filled.Description
+        };
+}

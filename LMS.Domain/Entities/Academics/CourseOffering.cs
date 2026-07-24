@@ -4,28 +4,45 @@ namespace Domain.Entities.Academics;
 
 public sealed class CourseOffering : BaseEntity
 {
-    private CourseOffering() { }
+    private CourseOffering()
+    {
+    }
 
     public Guid CourseId { get; private set; }
+
     public Guid SemesterId { get; private set; }
+
     public string SectionCode { get; private set; } = default!;
+
     public int Capacity { get; private set; }
+
+    public DateTime StartsAtUtc { get; private set; }
+
+    public DateTime EndsAtUtc { get; private set; }
+
     public Guid? InstructorProfileId { get; private set; }
+
     public DateTime CreatedAtUtc { get; private set; }
+
     public DateTime? InstructorAssignedAtUtc { get; private set; }
+
     public bool IsActive { get; private set; }
 
     public static CourseOffering Create(
         Guid courseId,
         Guid semesterId,
         string sectionCode,
-        int capacity)
+        int capacity,
+        DateTime startsAtUtc,
+        DateTime endsAtUtc)
     {
         Validate(
             courseId,
             semesterId,
             sectionCode,
-            capacity);
+            capacity,
+            startsAtUtc,
+            endsAtUtc);
 
         return new CourseOffering
         {
@@ -34,6 +51,8 @@ public sealed class CourseOffering : BaseEntity
             SemesterId = semesterId,
             SectionCode = NormalizeSectionCode(sectionCode),
             Capacity = capacity,
+            StartsAtUtc = startsAtUtc,
+            EndsAtUtc = endsAtUtc,
             CreatedAtUtc = DateTime.UtcNow,
             IsActive = true
         };
@@ -42,37 +61,31 @@ public sealed class CourseOffering : BaseEntity
     public void Update(
         string sectionCode,
         int capacity,
-        int activeEnrollmentCount)
+        DateTime startsAtUtc,
+        DateTime endsAtUtc)
     {
         Validate(
             CourseId,
             SemesterId,
             sectionCode,
-            capacity);
-
-        if (capacity < activeEnrollmentCount)
-        {
-            throw new InvalidOperationException(
-                "ظرفیت گروه نمی‌تواند کمتر از تعداد دانشجویان فعال باشد.");
-        }
+            capacity,
+            startsAtUtc,
+            endsAtUtc);
 
         SectionCode = NormalizeSectionCode(sectionCode);
         Capacity = capacity;
+        StartsAtUtc = startsAtUtc;
+        EndsAtUtc = endsAtUtc;
     }
 
-    public bool HasAvailableCapacity(int activeEnrollmentCount)
-    {
-        return IsActive &&
-               activeEnrollmentCount < Capacity;
-    }
+    public bool HasCapacity(int activeEnrollmentCount) =>
+        activeEnrollmentCount < Capacity;
 
     public void AssignInstructor(Guid instructorProfileId)
     {
         if (instructorProfileId == Guid.Empty)
-        {
             throw new ArgumentException(
                 "InstructorProfileId is required.");
-        }
 
         InstructorProfileId = instructorProfileId;
         InstructorAssignedAtUtc = DateTime.UtcNow;
@@ -92,7 +105,9 @@ public sealed class CourseOffering : BaseEntity
         Guid courseId,
         Guid semesterId,
         string sectionCode,
-        int capacity)
+        int capacity,
+        DateTime startsAtUtc,
+        DateTime endsAtUtc)
     {
         if (courseId == Guid.Empty)
             throw new ArgumentException("CourseId is required.");
@@ -104,20 +119,18 @@ public sealed class CourseOffering : BaseEntity
             throw new ArgumentException("SectionCode is required.");
 
         if (sectionCode.Trim().Length > 20)
-        {
             throw new ArgumentException(
-                "SectionCode cannot be longer than 20 characters.");
-        }
+                "SectionCode cannot exceed 20 characters.");
 
         if (capacity is < 1 or > 500)
-        {
             throw new ArgumentException(
                 "Capacity must be between 1 and 500.");
-        }
+
+        if (endsAtUtc <= startsAtUtc)
+            throw new ArgumentException(
+                "End date must be after start date.");
     }
 
-    private static string NormalizeSectionCode(string sectionCode)
-    {
-        return sectionCode.Trim().ToUpperInvariant();
-    }
+    private static string NormalizeSectionCode(string sectionCode) =>
+        sectionCode.Trim().ToUpperInvariant();
 }

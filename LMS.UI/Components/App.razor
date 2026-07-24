@@ -3,28 +3,37 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0" />
+
     <base href="/" />
-    <ResourcePreloader />
-    <HeadOutlet @rendermode="InteractiveServer" />
-    <link rel="stylesheet" href="@Assets["app.css"]" />
-    <link rel="stylesheet" href="@Assets["LMS.UI.styles.css"]" />
-    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
-    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link href="fonts/vazirmatn/vazirmatn-font-face.css" rel="stylesheet" />
-    @* <link href="fonts/vazirmatn/vazirmatn-variable-font-face.css" rel="stylesheet" /> *@
-   
-    
+
+    <link rel="stylesheet"
+          href="_content/MudBlazor/MudBlazor.min.css" />
+
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
+
+    <link rel="stylesheet"
+          href="app.css" />
+
+    <HeadOutlet />
 </head>
 
 <body>
-  <Routes @rendermode="InteractiveServer" />
-   @*  <ReconnectModal /> *@
+    <Routes @rendermode="InteractiveServer" />
 
-    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="_framework/blazor.web.js"></script>
+
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-    <script src="js/video.js"></script>
-    
+
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.16/dist/hls.min.js"></script>
+
+    <script src="js/quill-editor.js"></script>
+    <script src="js/private-hls-player.js"></script>
 </body>
 
 </html>

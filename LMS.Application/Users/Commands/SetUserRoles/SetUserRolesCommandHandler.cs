@@ -1,5 +1,4 @@
 ﻿using Application.Abstractions.Auth;
-using Application.Abstractions.Persistence;
 using Application.Common.Results;
 using MediatR;
 
@@ -9,20 +8,17 @@ public sealed class SetUserRolesCommandHandler
     : IRequestHandler<SetUserRolesCommand, Result>
 {
     private readonly IIdentityService _identityService;
-    private readonly IApplicationDbContext _dbContext;
 
     public SetUserRolesCommandHandler(
-        IIdentityService identityService,
-        IApplicationDbContext dbContext)
+        IIdentityService identityService)
     {
         _identityService = identityService;
-        _dbContext = dbContext;
     }
 
-    public async Task Handle(SetUserRolesCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(
+        SetUserRolesCommand request,
+        CancellationToken cancellationToken)
     {
-        await using var tx = await _dbContext.BeginTransactionAsync(cancellationToken);
-
         try
         {
             await _identityService.SetUserRolesAsync(
@@ -30,12 +26,14 @@ public sealed class SetUserRolesCommandHandler
                 request.Roles,
                 cancellationToken);
 
-            await tx.CommitAsync(cancellationToken);
+            return Result.Success();
         }
-        catch
+        catch (InvalidOperationException ex)
         {
-            await tx.RollbackAsync(cancellationToken);
-            throw;
+            return Result.Invalid(
+                Error.Validation(
+                    "roles",
+                    ex.Message));
         }
     }
 }

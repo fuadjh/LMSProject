@@ -46,10 +46,18 @@ public sealed class CourseOfferingsController : ControllerBase
 
     [HttpPost]
     [HasPermission(Permissions.CourseOfferings.Create)]
-    public async Task<IActionResult> Create(CreateCourseOfferingRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(
+       CreateCourseOfferingRequest request,
+       CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(
-            new CreateCourseOfferingCommand(request.CourseId, request.SemesterId),
+            new CreateCourseOfferingCommand(
+                request.CourseId,
+                request.SemesterId,
+                request.SectionCode,
+                request.Capacity,
+                request.StartsAtUtc,
+                request.EndsAtUtc),
             cancellationToken);
 
         return result.ToActionResult(this);
@@ -118,6 +126,12 @@ public sealed class CourseOfferingsController : ControllerBase
     }
 }
 
-public sealed record CreateCourseOfferingRequest(Guid CourseId, Guid SemesterId);
+public sealed record CreateCourseOfferingRequest(
+    Guid CourseId,
+    Guid SemesterId,
+    string SectionCode,
+    int Capacity,
+    DateTime StartsAtUtc,
+    DateTime EndsAtUtc);
 public sealed record AssignInstructorRequest(Guid InstructorProfileId);
 public sealed record EnrollStudentRequest(Guid StudentProfileId);

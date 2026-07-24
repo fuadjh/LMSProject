@@ -6,25 +6,35 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  
 
   <ItemGroup>
     <Folder Include="Identity\" />
   </ItemGroup>
 
- 
-
   <ItemGroup>
-    
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.8" />
+	  
+	  <PackageReference Include="AngleSharp" Version="1.6.0" />
+	  <PackageReference Include="HtmlSanitizer" Version="9.1.973" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10"/>
+			
+	  <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\LMS.Application\LMS.Application.csproj" />
+    <ProjectReference Include="..\LMS.Common\LMS.Common.csproj" />
     <ProjectReference Include="..\LMS.Domain\LMS.Domain.csproj" />
+	
   </ItemGroup>
+
+  
 
 </Project>

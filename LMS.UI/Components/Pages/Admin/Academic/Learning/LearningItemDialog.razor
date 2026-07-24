@@ -1,0 +1,417 @@
+﻿@using System.Net.Http.Headers
+@using Common.Contracts.Learning
+@using Common.Enums
+@using Microsoft.AspNetCore.Components.Forms
+@using WebUi.Components.Pages.Admin.Academic.Learning
+@using WebUi.Components.Shared.Forms
+@using WebUi.Services
+
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(Model.Id.HasValue
+                ? "ویرایش محتوا"
+                : "ثبت محتوا")
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Title"
+                                  Label="عنوان محتوا"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="عنوان الزامی است."
+                                  Disabled="_saving" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSelect T="LearningItemType"
+                               @bind-Value="Model.Type"
+                               Label="نوع محتوا"
+                               Variant="Variant.Outlined"
+                               Disabled="_saving || Model.Id.HasValue">
+
+                        <MudSelectItem Value="LearningItemType.Page">
+                            صفحه متنی
+                        </MudSelectItem>
+
+                        <MudSelectItem Value="LearningItemType.File">
+                            فایل
+                        </MudSelectItem>
+
+                        <MudSelectItem Value="LearningItemType.ExternalLink">
+                            لینک خارجی
+                        </MudSelectItem>
+
+                        <MudSelectItem Value="LearningItemType.Video">
+                            ویدئو
+                        </MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                @if (Model.Type == LearningItemType.Page)
+                {
+                    <MudItem xs="12">
+                        <RichTextEditor @bind-Value="Model.HtmlContent" />
+                    </MudItem>
+                }
+
+                @if (Model.Type == LearningItemType.ExternalLink)
+                {
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="Model.ExternalUrl"
+                                      Label="آدرس کامل لینک"
+                                      Placeholder="https://example.com"
+                                      Variant="Variant.Outlined"
+                                      Required="true"
+                                      RequiredError="آدرس لینک الزامی است."
+                                      Disabled="_saving" />
+                    </MudItem>
+                }
+
+                @if (Model.Type == LearningItemType.File)
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2"
+                                 Class="mb-2">
+                            انتخاب فایل
+                        </MudText>
+
+                        <InputFile OnChange="SelectFile" />
+
+                        @if (!string.IsNullOrWhiteSpace(
+                                Model.OriginalFileName))
+                        {
+                            <MudAlert Severity="Severity.Info"
+                                      Class="mt-2">
+                                فایل فعلی:
+                                @Model.OriginalFileName
+                            </MudAlert>
+                        }
+                    </MudItem>
+                }
+
+                @if (Model.Type == LearningItemType.Video)
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2"
+                                 Class="mb-2">
+                            فایل ویدئو
+                        </MudText>
+
+                        <InputFile OnChange="SelectFile"
+                                   accept="video/*" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2"
+                                 Class="mb-2">
+                            تصویر کاور
+                        </MudText>
+
+                        <InputFile OnChange="SelectCover"
+                                   accept="image/jpeg,image/png,image/webp" />
+                    </MudItem>
+
+                    @if (!string.IsNullOrWhiteSpace(
+                            Model.HlsMasterPlaylistKey))
+                    {
+                        <MudAlert Severity="Severity.Success">
+                            نسخه HLS ویدئو آماده است.
+                        </MudAlert>
+                    }
+                }
+
+                <MudItem xs="12">
+                    <MudSwitch T="bool"
+                               @bind-Value="Model.IsRequired"
+                               Color="Color.Primary"
+                               Disabled="_saving">
+                        برای تکمیل ماژول الزامی است
+                    </MudSwitch>
+                </MudItem>
+
+                @if (_uploading)
+                {
+                    <MudItem xs="12">
+                        <MudProgressLinear Indeterminate="true"
+                                           Color="Color.Primary" />
+
+                        <MudText Typo="Typo.caption"
+                                 Class="mt-2">
+                            @GetUploadMessage()
+                        </MudText>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Disabled="_saving"
+                   OnClick="MudDialog.Cancel">
+            انصراف
+        </MudButton>
+
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="_saving"
+                   OnClick="SaveAsync">
+            @if (_saving)
+            {
+                <MudProgressCircular Indeterminate="true"
+                                     Size="Size.Small"
+                                     Class="me-2" />
+            }
+
+            ذخیره
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private const long MaxFileSize =
+        100L * 1024L * 1024L;
+
+    private const long MaxVideoSize =
+        2L * 1024L * 1024L * 1024L;
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public LearningItemFormModel Model { get; set; } = default!;
+
+    private MudForm? _form;
+
+    private IBrowserFile? _file;
+    private IBrowserFile? _cover;
+
+    private bool _saving;
+    private bool _uploading;
+
+    private void SelectFile(InputFileChangeEventArgs args)
+    {
+        _file = args.File;
+    }
+
+    private void SelectCover(InputFileChangeEventArgs args)
+    {
+        _cover = args.File;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_form is null || _saving)
+            return;
+
+        await _form.Validate();
+
+        if (!_form.IsValid)
+            return;
+
+        if (Model.Type is LearningItemType.File or
+            LearningItemType.Video)
+        {
+            var hasExistingAsset =
+                Model.Type == LearningItemType.File
+                    ? !string.IsNullOrWhiteSpace(Model.StorageKey)
+                    : !string.IsNullOrWhiteSpace(
+                        Model.HlsMasterPlaylistKey);
+
+            if (_file is null && !hasExistingAsset)
+            {
+                Snackbar.Add(
+                    "انتخاب فایل الزامی است.",
+                    Severity.Warning);
+
+                return;
+            }
+        }
+
+        _saving = true;
+
+        try
+        {
+            if (_file is not null &&
+                Model.Type is LearningItemType.File or
+                    LearningItemType.Video)
+            {
+                var uploaded = await UploadAssetAsync();
+
+                if (uploaded is null)
+                    return;
+
+                Model.StorageKey = uploaded.StorageKey;
+                Model.HlsMasterPlaylistKey =
+                    uploaded.HlsMasterPlaylistKey;
+
+                Model.CoverStorageKey =
+                    uploaded.CoverStorageKey;
+
+                Model.OriginalFileName =
+                    uploaded.OriginalFileName;
+
+                Model.ContentType = uploaded.ContentType;
+                Model.DurationSeconds =
+                    uploaded.DurationSeconds;
+            }
+
+            var request = new
+            {
+                Model.LearningModuleId,
+                Model.Title,
+                Model.Type,
+                Model.HtmlContent,
+                Model.ExternalUrl,
+                Model.StorageKey,
+                Model.HlsMasterPlaylistKey,
+                Model.OriginalFileName,
+                Model.ContentType,
+                Model.CoverStorageKey,
+                Model.DurationSeconds,
+                Model.IsRequired
+            };
+
+            var response = Model.Id.HasValue
+                ? await Http.PutAsJsonAsync(
+                    $"api/learning-content/items/{Model.Id.Value}",
+                    request)
+                : await Http.PostAsJsonAsync(
+                    "api/learning-content/items",
+                    request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(
+                    await ApiErrorReader.ReadErrorAsync(response),
+                    Severity.Error);
+
+                return;
+            }
+
+            Snackbar.Add(
+                Model.Id.HasValue
+                    ? "محتوا ویرایش شد."
+                    : "محتوا ثبت شد.",
+                Severity.Success);
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (IOException)
+        {
+            Snackbar.Add(
+                "خواندن فایل ناموفق بود.",
+                Severity.Error);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add(
+                "ارتباط با سرور برقرار نشد.",
+                Severity.Error);
+        }
+        finally
+        {
+            _uploading = false;
+            _saving = false;
+        }
+    }
+
+    private async Task<LearningAssetUploadDto?>
+        UploadAssetAsync()
+    {
+        if (_file is null)
+            return null;
+
+        _uploading = true;
+
+        var maxSize = Model.Type == LearningItemType.Video
+            ? MaxVideoSize
+            : MaxFileSize;
+
+        using var content =
+            new MultipartFormDataContent();
+
+        var fileStream =
+            _file.OpenReadStream(maxSize);
+
+        var fileContent =
+            new StreamContent(fileStream);
+
+        fileContent.Headers.ContentType =
+            new MediaTypeHeaderValue(
+                string.IsNullOrWhiteSpace(_file.ContentType)
+                    ? "application/octet-stream"
+                    : _file.ContentType);
+
+        content.Add(
+            fileContent,
+            "file",
+            _file.Name);
+
+        Stream? coverStream = null;
+
+        if (_cover is not null)
+        {
+            coverStream =
+                _cover.OpenReadStream(10 * 1024 * 1024);
+
+            var coverContent =
+                new StreamContent(coverStream);
+
+            coverContent.Headers.ContentType =
+                new MediaTypeHeaderValue(
+                    string.IsNullOrWhiteSpace(
+                        _cover.ContentType)
+                        ? "application/octet-stream"
+                        : _cover.ContentType);
+
+            content.Add(
+                coverContent,
+                "cover",
+                _cover.Name);
+        }
+
+        try
+        {
+            var url =
+                "api/learning-content/assets" +
+                $"?courseOfferingId={Model.CourseOfferingId}" +
+                $"&type={(int)Model.Type}";
+
+            var response = await Http.PostAsync(
+                url,
+                content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(
+                    await ApiErrorReader.ReadErrorAsync(response),
+                    Severity.Error);
+
+                return null;
+            }
+
+            return await response.Content
+                .ReadFromJsonAsync<LearningAssetUploadDto>();
+        }
+        finally
+        {
+            await fileStream.DisposeAsync();
+
+            if (coverStream is not null)
+                await coverStream.DisposeAsync();
+        }
+    }
+
+    private string GetUploadMessage() =>
+        Model.Type == LearningItemType.Video
+            ? "در حال بارگذاری و تبدیل ویدئو به HLS..."
+            : "در حال بارگذاری فایل...";
+}

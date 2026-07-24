@@ -40,57 +40,74 @@ public static class IdentitySeeder
 
         await SetRolePermissionsAsync(roleManager, RoleNames.Admin, Permissions.All);
 
-        await SetRolePermissionsAsync(roleManager, RoleNames.EducationExpert, new[]
+        await SetRolePermissionsAsync(
+      roleManager,
+      RoleNames.EducationExpert,
+      new[]
+      {
+        Permissions.ReferenceData.View,
+        Permissions.ReferenceData.Manage,
+
+        Permissions.Courses.View,
+        Permissions.Courses.Manage,
+
+        Permissions.Semesters.View,
+        Permissions.Semesters.Manage,
+
+        Permissions.CourseOfferings.Create,
+        Permissions.CourseOfferings.View,
+        Permissions.CourseOfferings.Manage,
+        Permissions.CourseOfferings.AssignInstructor,
+        Permissions.CourseOfferings.EnrollStudent,
+        Permissions.CourseOfferings.ManageEnrollment,
+
+        Permissions.Learning.View,
+
+        Permissions.Students.Create,
+        Permissions.Students.Edit,
+        Permissions.Students.View,
+
+        Permissions.Instructors.Create,
+        Permissions.Instructors.Edit,
+        Permissions.Instructors.View,
+
+        Permissions.EducationExperts.View
+      });
+
+        await SetRolePermissionsAsync(
+        roleManager,
+        RoleNames.Instructor,
+        new[]
         {
-    Permissions.ReferenceData.View,
-    Permissions.ReferenceData.Manage,
+        Permissions.Courses.View,
+        Permissions.Semesters.View,
+        Permissions.CourseOfferings.View,
 
-    Permissions.Courses.View,
-    Permissions.Courses.Manage,
+        Permissions.Learning.View,
+        Permissions.Learning.Manage,
 
-    Permissions.Semesters.View,
-    Permissions.Semesters.Manage,
+        Permissions.QuestionBank.View,
+        Permissions.QuestionBank.Manage,
 
-    Permissions.CourseOfferings.Create,
-    Permissions.CourseOfferings.View,
-    Permissions.CourseOfferings.AssignInstructor,
-    Permissions.CourseOfferings.EnrollStudent,
-    Permissions.CourseOfferings.ManageEnrollment,
+        Permissions.Exams.View,
+        Permissions.Exams.Manage,
+        Permissions.Exams.Grade
+        });
 
-    Permissions.Students.Create,
-    Permissions.Students.Edit,
-    Permissions.Students.View,
+        await SetRolePermissionsAsync(
+      roleManager,
+      RoleNames.Student,
+      new[]
+      {
+        Permissions.Courses.View,
+        Permissions.Semesters.View,
+        Permissions.CourseOfferings.View,
 
-    Permissions.Instructors.Create,
-    Permissions.Instructors.Edit,
-    Permissions.Instructors.View,
+        Permissions.Learning.View,
 
-    Permissions.EducationExperts.View
-});
-
-        await SetRolePermissionsAsync(roleManager, RoleNames.Instructor, new[]
-        {
-    Permissions.Courses.View,
-    Permissions.Semesters.View,
-    Permissions.CourseOfferings.View,
-
-    Permissions.QuestionBank.View,
-    Permissions.QuestionBank.Manage,
-
-    Permissions.Exams.View,
-    Permissions.Exams.Manage,
-    Permissions.Exams.Grade
-});
-
-        await SetRolePermissionsAsync(roleManager, RoleNames.Student, new[]
-        {
-    Permissions.Courses.View,
-    Permissions.Semesters.View,
-    Permissions.CourseOfferings.View,
-
-    Permissions.Exams.View,
-    Permissions.Exams.Take
-});
+        Permissions.Exams.View,
+        Permissions.Exams.Take
+      });
 
         var adminUser = await userManager.FindByNameAsync("admin");
         if (adminUser is null)

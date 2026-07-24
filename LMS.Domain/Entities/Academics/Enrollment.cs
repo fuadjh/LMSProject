@@ -4,11 +4,18 @@ namespace Domain.Entities.Academics;
 
 public sealed class Enrollment : BaseEntity
 {
-    private Enrollment() { }
+    private Enrollment()
+    {
+    }
 
     public Guid CourseOfferingId { get; private set; }
+
     public Guid StudentProfileId { get; private set; }
+
     public DateTime EnrolledAtUtc { get; private set; }
+
+    public DateTime? DeactivatedAtUtc { get; private set; }
+
     public bool IsActive { get; private set; }
 
     public static Enrollment Create(
@@ -16,16 +23,12 @@ public sealed class Enrollment : BaseEntity
         Guid studentProfileId)
     {
         if (courseOfferingId == Guid.Empty)
-        {
             throw new ArgumentException(
                 "CourseOfferingId is required.");
-        }
 
         if (studentProfileId == Guid.Empty)
-        {
             throw new ArgumentException(
                 "StudentProfileId is required.");
-        }
 
         return new Enrollment
         {
@@ -37,6 +40,15 @@ public sealed class Enrollment : BaseEntity
         };
     }
 
+    public void Deactivate()
+    {
+        if (!IsActive)
+            return;
+
+        IsActive = false;
+        DeactivatedAtUtc = DateTime.UtcNow;
+    }
+
     public void Activate()
     {
         if (IsActive)
@@ -44,10 +56,6 @@ public sealed class Enrollment : BaseEntity
 
         IsActive = true;
         EnrolledAtUtc = DateTime.UtcNow;
-    }
-
-    public void Deactivate()
-    {
-        IsActive = false;
+        DeactivatedAtUtc = null;
     }
 }

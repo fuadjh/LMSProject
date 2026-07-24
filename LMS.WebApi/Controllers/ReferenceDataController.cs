@@ -43,7 +43,7 @@ public sealed class ReferenceDataController : ControllerBase
     }
 
     [HttpPost("faculties")]
-    //[HasPermission(Permissions.ReferenceData.Create)]
+    //[HasPermission(Permissions.ReferenceData.Manage)]
     public async Task<IActionResult> CreateFaculty(
       [FromBody] CreateFacultyCommand command,
       CancellationToken cancellationToken)
@@ -55,7 +55,7 @@ public sealed class ReferenceDataController : ControllerBase
         return result.ToActionResult(this);
     }
     [HttpPut("faculties/{id:guid}")]
-    //[HasPermission(Permissions.ReferenceData.Update)]
+    //[HasPermission(Permissions.ReferenceData.Manage)]
     public async Task<IActionResult> UpdateFaculty(
     Guid id,
     [FromBody] UpdateFacultyCommand command,
@@ -74,7 +74,7 @@ public sealed class ReferenceDataController : ControllerBase
         return result.ToActionResult(this);
     }
     [HttpDelete("faculties/{id:guid}")]
-    //[HasPermission(Permissions.ReferenceData.Delete)]
+    //[HasPermission(Permissions.ReferenceData.Manage)]
     public async Task<IActionResult> DeleteFaculty(
     Guid id,
     CancellationToken cancellationToken)
@@ -100,7 +100,7 @@ public sealed class ReferenceDataController : ControllerBase
     }
 
     [HttpPost("majors")]
-    //[HasPermission(Permissions.ReferenceData.Create)]
+    //[HasPermission(Permissions.ReferenceData.Manage)]
     public async Task<IActionResult> CreateMajor(
       [FromBody] CreateMajorCommand command,
       CancellationToken cancellationToken)
@@ -113,7 +113,7 @@ public sealed class ReferenceDataController : ControllerBase
     }
 
     [HttpPut("majors/{id:guid}")]
-    //[HasPermission(Permissions.ReferenceData.Update)]
+    //[HasPermission(Permissions.ReferenceData.Manage)]
     public async Task<IActionResult> UpdateMajor(
     Guid id,
     [FromBody] UpdateMajorCommand command,
@@ -133,7 +133,7 @@ public sealed class ReferenceDataController : ControllerBase
     }
 
     [HttpDelete("majors/{id:guid}")]
-    //[HasPermission(Permissions.ReferenceData.Delete)]
+    //[HasPermission(Permissions.ReferenceData.Manage)]
     public async Task<IActionResult> DeleteMajor(
     Guid id,
     CancellationToken cancellationToken)
@@ -164,7 +164,7 @@ public sealed class ReferenceDataController : ControllerBase
         return result.ToActionResult(this);
     }
     [HttpPut("universities/{id:guid}")]
-    //[HasPermission(Permissions.ReferenceData.Update)]
+    //[HasPermission(Permissions.ReferenceData.Manage)]
     public async Task<IActionResult> UpdateUniversity(
     Guid id,
     [FromBody] UpdateUniversityCommand command,
@@ -180,7 +180,7 @@ public sealed class ReferenceDataController : ControllerBase
         return result.ToActionResult(this);
     }
     [HttpDelete("universities/{id:guid}")]
-    //[HasPermission(Permissions.ReferenceData.Delete)]
+    //[HasPermission(Permissions.ReferenceData.Manage)]
     public async Task<IActionResult> DeleteUniversity(
     Guid id,
     CancellationToken cancellationToken)

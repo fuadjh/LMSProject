@@ -24,9 +24,16 @@ public static class Permissions
     {
         public const string Create = "CourseOfferings.Create";
         public const string View = "CourseOfferings.View";
+        public const string Manage = "CourseOfferings.Manage";
         public const string AssignInstructor = "CourseOfferings.AssignInstructor";
         public const string EnrollStudent = "CourseOfferings.EnrollStudent";
         public const string ManageEnrollment = "CourseOfferings.ManageEnrollment";
+    }
+
+    public static class Learning
+    {
+        public const string View = "Learning.View";
+        public const string Manage = "Learning.Manage";
     }
 
     public static class QuestionBank
@@ -72,8 +79,8 @@ public static class Permissions
         public const string UsersRead = "Security.Users.Read";
     }
 
-    public static IReadOnlyList<string> All => new[]
-    {
+    public static IReadOnlyList<string> All =>
+    [
         ReferenceData.View,
         ReferenceData.Manage,
 
@@ -85,9 +92,13 @@ public static class Permissions
 
         CourseOfferings.Create,
         CourseOfferings.View,
+        CourseOfferings.Manage,
         CourseOfferings.AssignInstructor,
         CourseOfferings.EnrollStudent,
         CourseOfferings.ManageEnrollment,
+
+        Learning.View,
+        Learning.Manage,
 
         QuestionBank.View,
         QuestionBank.Manage,
@@ -113,5 +124,5 @@ public static class Permissions
         Security.UserRolesAssign,
         Security.ScopesAssign,
         Security.UsersRead
-    };
+    ];
 }

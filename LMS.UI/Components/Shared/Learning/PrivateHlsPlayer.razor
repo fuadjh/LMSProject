@@ -1,0 +1,103 @@
+﻿@implements IAsyncDisposable
+@inject IJSRuntime JsRuntime
+@inject HttpClient Http
+
+<div class="private-video-container"
+     oncontextmenu="return false;">
+
+    @if (!string.IsNullOrWhiteSpace(CoverUrl))
+    {
+        <video id="@_videoId"
+               class="private-video-player"
+               controls
+               controlsList="nodownload noremoteplayback"
+               disablePictureInPicture
+               poster="@CoverUrl"
+               preload="metadata">
+        </video>
+    }
+    else
+    {
+        <video id="@_videoId"
+               class="private-video-player"
+               controls
+               controlsList="nodownload noremoteplayback"
+               disablePictureInPicture
+               preload="metadata">
+        </video>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public Guid LearningItemId { get; set; }
+
+    [Parameter]
+    public int StartPositionSeconds { get; set; }
+
+    [Parameter]
+    public string? CoverUrl { get; set; }
+
+    private readonly string _videoId =
+        $"video-{Guid.NewGuid():N}";
+
+    private DotNetObjectReference<PrivateHlsPlayer>? _reference;
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        _reference =
+            DotNetObjectReference.Create(this);
+
+        var playlistUrl = new Uri(
+            Http.BaseAddress!,
+            $"api/learning-content/items/{LearningItemId}/hls")
+            .ToString();
+
+        await JsRuntime.InvokeVoidAsync(
+            "privateHlsPlayer.create",
+            _videoId,
+            playlistUrl,
+            StartPositionSeconds,
+            _reference);
+    }
+
+    [JSInvokable]
+    public async Task ReportProgress(
+        double position,
+        double watchedDelta)
+    {
+        await Http.PostAsJsonAsync(
+            $"api/learning-content/items/{LearningItemId}/video-progress",
+            new
+            {
+                PositionSeconds =
+                    Math.Max(0, (int)Math.Round(position)),
+
+                WatchedDeltaSeconds =
+                    Math.Clamp(
+                        (int)Math.Round(watchedDelta),
+                        0,
+                        30)
+            });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync(
+                "privateHlsPlayer.dispose",
+                _videoId);
+        }
+        catch
+        {
+            // Circuit is being disposed.
+        }
+
+        _reference?.Dispose();
+    }
+}
