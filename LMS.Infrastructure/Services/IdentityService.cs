@@ -295,6 +295,124 @@ public sealed class IdentityService : IIdentityService
             }
         }
     }
+    public async Task AddUserToRoleAsync(
+    Guid authUserId,
+    string role,
+    CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByIdAsync(
+            authUserId.ToString())
+            ?? throw new InvalidOperationException(
+                "کاربر Identity یافت نشد.");
+
+        if (!await _roleManager.RoleExistsAsync(role))
+            throw new InvalidOperationException(
+                $"نقش '{role}' یافت نشد.");
+
+        if (await _userManager.IsInRoleAsync(user, role))
+            return;
+
+        var result = await _userManager.AddToRoleAsync(user, role);
+
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                string.Join(
+                    " | ",
+                    result.Errors.Select(x => x.Description)));
+        }
+    }
+
+    public async Task UpdateUserEmailAsync(
+        Guid authUserId,
+        string email,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var normalizedEmail = email.Trim();
+
+        var user = await _userManager.FindByIdAsync(
+            authUserId.ToString())
+            ?? throw new InvalidOperationException(
+                "کاربر Identity یافت نشد.");
+
+        var duplicateUser =
+            await _userManager.FindByEmailAsync(normalizedEmail);
+
+        if (duplicateUser is not null &&
+            duplicateUser.Id != authUserId)
+        {
+            throw new InvalidOperationException(
+                "ایمیل واردشده قبلاً استفاده شده است.");
+        }
+
+        user.Email = normalizedEmail;
+        user.EmailConfirmed = true;
+
+        var result = await _userManager.UpdateAsync(user);
+
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                string.Join(
+                    " | ",
+                    result.Errors.Select(x => x.Description)));
+        }
+    }
+
+    public async Task SetUserActiveStatusAsync(
+        Guid authUserId,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByIdAsync(
+            authUserId.ToString())
+            ?? throw new InvalidOperationException(
+                "کاربر Identity یافت نشد.");
+
+        if (user.IsActive == isActive)
+            return;
+
+        user.IsActive = isActive;
+
+        var result = await _userManager.UpdateAsync(user);
+
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                string.Join(
+                    " | ",
+                    result.Errors.Select(x => x.Description)));
+        }
+    }
+
+    public async Task DeleteUserAsync(
+        Guid authUserId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByIdAsync(
+            authUserId.ToString());
+
+        if (user is null)
+            return;
+
+        var result = await _userManager.DeleteAsync(user);
+
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                string.Join(
+                    " | ",
+                    result.Errors.Select(x => x.Description)));
+        }
+    }
 
     public async Task<IReadOnlyCollection<string>> GetUserRolesAsync(
         Guid authUserId,

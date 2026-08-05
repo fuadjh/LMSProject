@@ -28,37 +28,80 @@ public sealed class CreateEducationExpertCommandHandler
         CreateEducationExpertCommand request,
         CancellationToken cancellationToken)
     {
-        if (await _identityService.ExistsByUserNameAsync(
-                request.UserName,
-                cancellationToken))
+        var nationalCode =
+            UserProfile.NormalizeNationalCode(request.NationalCode);
+
+        if (!UserProfile.IsValidNationalCode(nationalCode))
         {
-            return Result<Guid>.Conflict(
-                "user.username_exists",
-                "نام کاربری تکراری است.");
+            return Result<Guid>.Invalid(
+                Error.Validation(
+                    "nationalCode",
+                    "کد ملی معتبر نیست."));
         }
 
-        if (await _identityService.ExistsByEmailAsync(
-                request.Email,
-                cancellationToken))
-        {
-            return Result<Guid>.Conflict(
-                "user.email_exists",
-                "ایمیل تکراری است.");
-        }
+        var normalizedEmployeeCode =
+            request.EmployeeCode.Trim();
 
-        var codeExists =
+        var employeeCodeExists =
             await _dbContext.EducationExpertProfiles
                 .AnyAsync(
-                    x =>
-                        x.EmployeeCode ==
-                        request.EmployeeCode.Trim(),
+                    x => x.EmployeeCode == normalizedEmployeeCode,
                     cancellationToken);
 
-        if (codeExists)
+        if (employeeCodeExists)
         {
             return Result<Guid>.Conflict(
-                "expert.code_exists",
+                "education_expert.employee_code_exists",
                 "کد کارمندی تکراری است.");
+        }
+
+        var existingUserProfile =
+            await _dbContext.UserProfiles
+                .SingleOrDefaultAsync(
+                    x => x.NationalCode == nationalCode,
+                    cancellationToken);
+
+        var existingEducationExpertProfile =
+            existingUserProfile is null
+                ? null
+                : await _dbContext.EducationExpertProfiles
+                    .SingleOrDefaultAsync(
+                        x => x.UserProfileId == existingUserProfile.Id,
+                        cancellationToken);
+
+        if (existingEducationExpertProfile is not null)
+        {
+            return Result<Guid>.Conflict(
+                "education_expert.profile_exists",
+                "این شخص قبلاً پروفایل کارشناس آموزش دارد.");
+        }
+
+        if (existingUserProfile is null)
+        {
+            var credentialsResult =
+                ValidateNewUserCredentials(request);
+
+            if (!credentialsResult.IsSuccess)
+                return Result<Guid>.Invalid(
+                    credentialsResult.Errors);
+
+            if (await _identityService.ExistsByUserNameAsync(
+                    request.UserName,
+                    cancellationToken))
+            {
+                return Result<Guid>.Conflict(
+                    "user.username_exists",
+                    "نام کاربری تکراری است.");
+            }
+
+            if (await _identityService.ExistsByEmailAsync(
+                    request.Email,
+                    cancellationToken))
+            {
+                return Result<Guid>.Conflict(
+                    "user.email_exists",
+                    "ایمیل تکراری است.");
+            }
         }
 
         await using var transaction =
@@ -67,30 +110,45 @@ public sealed class CreateEducationExpertCommandHandler
 
         try
         {
-            var authUserId =
-                await _identityService.CreateUserAsync(
-                    request.UserName.Trim(),
-                    request.Email.Trim(),
-                    request.Password,
-                    [RoleNames.EducationExpert],
+            UserProfile userProfile;
+
+            if (existingUserProfile is not null)
+            {
+                userProfile = existingUserProfile;
+
+                await _identityService.AddUserToRoleAsync(
+                    userProfile.AuthUserId,
+                    RoleNames.EducationExpert,
                     cancellationToken);
+            }
+            else
+            {
+                var authUserId =
+                    await _identityService.CreateUserAsync(
+                        request.UserName.Trim(),
+                        request.Email.Trim(),
+                        request.Password,
+                        [RoleNames.EducationExpert],
+                        cancellationToken);
 
-            var userProfile = UserProfile.Create(
-                authUserId,
-                request.FirstName,
-                request.LastName);
+                userProfile = UserProfile.Create(
+                    authUserId,
+                    request.FirstName,
+                    request.LastName,
+                    nationalCode);
 
-            var expertProfile =
+                await _dbContext.AddAsync(
+                    userProfile,
+                    cancellationToken);
+            }
+
+            var educationExpertProfile =
                 EducationExpertProfile.Create(
                     userProfile.Id,
-                    request.EmployeeCode);
+                    normalizedEmployeeCode);
 
             await _dbContext.AddAsync(
-                userProfile,
-                cancellationToken);
-
-            await _dbContext.AddAsync(
-                expertProfile,
+                educationExpertProfile,
                 cancellationToken);
 
             await _dbContext.SaveChangesAsync(
@@ -99,7 +157,17 @@ public sealed class CreateEducationExpertCommandHandler
             await transaction.CommitAsync(
                 cancellationToken);
 
-            return Result<Guid>.Success(userProfile.Id);
+            return Result<Guid>.Success(
+                userProfile.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await transaction.RollbackAsync(
+                cancellationToken);
+
+            return Result<Guid>.Conflict(
+                "education_expert.create_conflict",
+                ex.Message);
         }
         catch (Exception ex)
         {
@@ -110,5 +178,55 @@ public sealed class CreateEducationExpertCommandHandler
                 "education_expert.create_failed",
                 ex.Message);
         }
+    }
+
+    private static Result ValidateNewUserCredentials(
+        CreateEducationExpertCommand request)
+    {
+        var errors = new List<Error>();
+
+        if (string.IsNullOrWhiteSpace(request.UserName))
+        {
+            errors.Add(
+                Error.Validation(
+                    "userName",
+                    "نام کاربری برای شخص جدید الزامی است."));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            errors.Add(
+                Error.Validation(
+                    "email",
+                    "ایمیل برای شخص جدید الزامی است."));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            errors.Add(
+                Error.Validation(
+                    "password",
+                    "رمز عبور برای شخص جدید الزامی است."));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.FirstName))
+        {
+            errors.Add(
+                Error.Validation(
+                    "firstName",
+                    "نام برای شخص جدید الزامی است."));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.LastName))
+        {
+            errors.Add(
+                Error.Validation(
+                    "lastName",
+                    "نام خانوادگی برای شخص جدید الزامی است."));
+        }
+
+        return errors.Count == 0
+            ? Result.Success()
+            : Result.Invalid(errors);
     }
 }

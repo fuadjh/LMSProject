@@ -172,4 +172,10 @@ public sealed class LmsDbContext
         builder.ApplyConfigurationsFromAssembly(
             typeof(LmsDbContext).Assembly);
     }
+
+    public void Remove<TEntity>(TEntity entity)
+     where TEntity : class
+    {
+        Set<TEntity>().Remove(entity);
+    }
 }

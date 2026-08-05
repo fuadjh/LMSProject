@@ -35,7 +35,8 @@ public interface IApplicationDbContext
     IQueryable<StudentProfile> StudentProfiles { get; }
     IQueryable<InstructorProfile> InstructorProfiles { get; }
     IQueryable<EducationExpertProfile> EducationExpertProfiles { get; }
-
+    void Remove<TEntity>(TEntity entity)
+    where TEntity : class;
     Task AddAsync<TEntity>(
         TEntity entity,
         CancellationToken cancellationToken = default)

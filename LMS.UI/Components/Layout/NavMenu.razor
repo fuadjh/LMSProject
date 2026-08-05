@@ -19,3 +19,23 @@
 <AuthorizeView Policy="@Permissions.QuestionBank.Manage">
     <MudNavLink Href="/admin/academic/course-offerings" Icon="@Icons.Material.Filled.Quiz">بانک سوال / آزمون</MudNavLink>
 </AuthorizeView>
+<AuthorizeView Policy="@Permissions.Students.View">
+    <MudNavLink Href="/admin/students"
+                Icon="@Icons.Material.Filled.School">
+        دانشجویان
+    </MudNavLink>
+</AuthorizeView>
+
+<AuthorizeView Policy="@Permissions.Instructors.View">
+    <MudNavLink Href="/admin/instructors"
+                Icon="@Icons.Material.Filled.CoPresent">
+        اساتید
+    </MudNavLink>
+</AuthorizeView>
+
+<AuthorizeView Policy="@Permissions.EducationExperts.View">
+    <MudNavLink Href="/admin/education-experts"
+                Icon="@Icons.Material.Filled.SupportAgent">
+        کارشناسان آموزش
+    </MudNavLink>
+</AuthorizeView>

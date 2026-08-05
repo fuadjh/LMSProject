@@ -1,0 +1,291 @@
+﻿@using Common.Security
+
+@using MudBlazor
+@using WebUi.Components.Crud
+@using WebUi.Components.Pages.Admin.Users
+
+@using WebUi.Components.Shared.Dialogs
+
+@inherits CrudServerPageBase<UserProfileListItemVm>
+@inject UserManagementApiClient ApiClient
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<MudStack Row="true"
+          Justify="Justify.SpaceBetween"
+          AlignItems="AlignItems.Center"
+          Class="mb-4">
+
+    <MudText Typo="Typo.h5">
+        @Title
+    </MudText>
+
+    <AuthorizeView Policy="@CreatePermission">
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="@(() => Navigation.NavigateTo(CreateRoute))">
+            افزودن
+        </MudButton>
+    </AuthorizeView>
+</MudStack>
+
+<MudTextField T="string"
+              Value="_search"
+              ValueChanged="@(value => SearchChangedAsync(value))"
+              Immediate="true"
+              DebounceInterval="400"
+              Placeholder="جستجو براساس نام، نام کاربری، کد ملی یا کد تخصصی"
+              Adornment="Adornment.Start"
+              AdornmentIcon="@Icons.Material.Filled.Search"
+              Variant="Variant.Outlined" />
+
+
+<CrudTable TItem="UserProfileListItemVm"
+           @ref="CrudTableReference"
+           ServerData="LoadAsync"
+           HeaderColumns="TableHeader"
+           RowColumns="TableRow"
+           AdditionalActions="TableActions" />
+
+@code {
+    [Parameter, EditorRequired]
+    public UserProfileTypeVm ProfileType { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string CreateRoute { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string CreatePermission { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string EditPermission { get; set; } = string.Empty;
+
+    private string? _search;
+
+    private async Task<TableData<UserProfileListItemVm>> LoadAsync(
+        TableState state,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await ApiClient.GetUsersAsync(
+                ProfileType,
+                state.Page + 1,
+                state.PageSize,
+                _search,
+                cancellationToken);
+
+            return new TableData<UserProfileListItemVm>
+            {
+                Items = result.Items,
+                TotalItems = result.TotalCount
+            };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+
+            return new TableData<UserProfileListItemVm>
+            {
+                Items = Array.Empty<UserProfileListItemVm>(),
+                TotalItems = 0
+            };
+        }
+    }
+
+    private RenderFragment TableHeader => @<text>
+        <MudTh>کد ملی</MudTh>
+        <MudTh>نام و نام خانوادگی</MudTh>
+        <MudTh>نام کاربری</MudTh>
+        <MudTh>کد تخصصی</MudTh>
+
+        @if (ProfileType == UserProfileTypeVm.Student)
+        {
+            <MudTh>رشته</MudTh>
+        }
+
+        <MudTh>وضعیت</MudTh>
+    </text>;
+
+    private RenderFragment<UserProfileListItemVm> TableRow =>
+        item => @<text>
+            <MudTd DataLabel="کد ملی">
+                @(item.NationalCode ?? "-")
+            </MudTd>
+
+            <MudTd DataLabel="نام و نام خانوادگی">
+                @item.FullName
+            </MudTd>
+
+            <MudTd DataLabel="نام کاربری">
+                @item.UserName
+            </MudTd>
+
+            <MudTd DataLabel="کد تخصصی">
+                @item.ProfileCode
+            </MudTd>
+
+            @if (ProfileType == UserProfileTypeVm.Student)
+            {
+                <MudTd DataLabel="رشته">
+                    @(item.MajorTitle ?? "-")
+                </MudTd>
+            }
+
+            <MudTd DataLabel="وضعیت">
+                <MudChip T="string"
+                         Size="Size.Small"
+                         Color="@(item.IsActive ? Color.Success : Color.Default)">
+                    @(item.IsActive ? "فعال" : "غیرفعال")
+                </MudChip>
+            </MudTd>
+        </text>;
+
+    private RenderFragment<UserProfileListItemVm> TableActions =>
+        item => @<text>
+            <AuthorizeView Policy="@EditPermission">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               Title="ویرایش"
+                               OnClick="@(() => OpenEditAsync(item))" />
+
+                <MudIconButton Icon="@(item.IsActive
+                                         ? Icons.Material.Filled.ToggleOff
+                                         : Icons.Material.Filled.ToggleOn)"
+                               Color="@(item.IsActive
+                                          ? Color.Warning
+                                          : Color.Success)"
+                               Size="Size.Small"
+                               Title="@(item.IsActive ? "غیرفعال‌کردن" : "فعال‌کردن")"
+                               OnClick="@(() => SetActiveAsync(item))" />
+            </AuthorizeView>
+
+            <AuthorizeView Policy="@Permissions.Security.UserRolesAssign">
+                <MudIconButton Icon="@Icons.Material.Filled.AdminPanelSettings"
+                               Color="Color.Info"
+                               Size="Size.Small"
+                               Title="نقش‌ها و محدوده‌ها"
+                               OnClick="@(() => OpenAccessAsync(item))" />
+            </AuthorizeView>
+
+            <AuthorizeView Policy="@Permissions.Security.UsersDelete">
+                <MudIconButton Icon="@Icons.Material.Filled.DeleteForever"
+                               Color="Color.Error"
+                               Size="Size.Small"
+                               Title="حذف کامل"
+                               OnClick="@(() => DeleteAsync(item))" />
+            </AuthorizeView>
+        </text>;
+
+    private async Task SearchChangedAsync(string value)
+    {
+        _search = value;
+        await ReloadAsync();
+    }
+
+    private Task OpenEditAsync(
+        UserProfileListItemVm item)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(UserProfileEditDialog.UserProfileId)] =
+                item.UserProfileId,
+
+            [nameof(UserProfileEditDialog.ProfileType)] =
+                ProfileType
+        };
+
+        return OpenDialogAndReloadAsync<UserProfileEditDialog>(
+            "ویرایش کاربر",
+            parameters,
+            MaxWidth.Medium);
+    }
+
+    private Task OpenAccessAsync(
+        UserProfileListItemVm item)
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(UserAccessDialog.UserProfileId)] =
+                item.UserProfileId
+        };
+
+        return OpenDialogAndReloadAsync<UserAccessDialog>(
+            "مدیریت نقش‌ها و محدوده‌ها",
+            parameters,
+            MaxWidth.Medium);
+    }
+
+    private async Task SetActiveAsync(
+        UserProfileListItemVm item)
+    {
+        try
+        {
+            await ApiClient.SetActiveStatusAsync(
+                ProfileType,
+                item.UserProfileId,
+                !item.IsActive);
+
+            Snackbar.Add(
+                item.IsActive
+                    ? "کاربر غیرفعال شد."
+                    : "کاربر فعال شد.",
+                Severity.Success);
+
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task DeleteAsync(
+        UserProfileListItemVm item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Message"] =
+                $"تمام پروفایل‌ها، نقش‌ها و دسترسی‌های «{item.FullName}» حذف می‌شود. ادامه می‌دهید؟",
+
+            ["ConfirmText"] = "حذف کامل",
+            ["CancelText"] = "انصراف"
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
+            "حذف کامل کاربر",
+            parameters,
+            new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                FullWidth = true,
+                MaxWidth = MaxWidth.ExtraSmall
+            });
+
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+            return;
+
+        try
+        {
+            await ApiClient.DeleteAsync(
+                item.UserProfileId);
+
+            Snackbar.Add(
+                "کاربر به‌صورت کامل حذف شد.",
+                Severity.Success);
+
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

@@ -922,10 +922,19 @@ namespace LMS.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("NationalCode")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AuthUserId")
                         .IsUnique();
+
+                    b.HasIndex("NationalCode")
+                        .IsUnique()
+                        .HasFilter("[NationalCode] IS NOT NULL");
 
                     b.ToTable("UserProfiles", (string)null);
                 });

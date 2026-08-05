@@ -1,0 +1,13 @@
+﻿@page "/admin/instructors"
+@using Common.Security
+@using WebUi.Components.Pages.Admin.Users
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(
+    Policy = Permissions.Instructors.View)]
+
+<PageTitle>مدیریت استادان</PageTitle>
+
+<UserManagementPage ProfileType="UserProfileTypeVm.Instructor"
+                    Title="مدیریت استادان"
+                    CreateRoute="/admin/instructors/create"
+                    CreatePermission="@Permissions.Instructors.Create"
+                    EditPermission="@Permissions.Instructors.Edit" />

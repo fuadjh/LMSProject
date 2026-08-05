@@ -77,6 +77,7 @@ public static class Permissions
         public const string UserRolesAssign = "Security.UserRoles.Assign";
         public const string ScopesAssign = "Security.Scopes.Assign";
         public const string UsersRead = "Security.Users.Read";
+        public const string UsersDelete = "Security.Users.Delete";
     }
 
     public static IReadOnlyList<string> All =>
@@ -123,6 +124,7 @@ public static class Permissions
         Security.RolesManage,
         Security.UserRolesAssign,
         Security.ScopesAssign,
-        Security.UsersRead
+        Security.UsersRead,
+        Security.UsersDelete
     ];
 }

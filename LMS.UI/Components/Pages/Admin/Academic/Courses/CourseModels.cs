@@ -1,20 +1,31 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Common.Enums;
 
 namespace WebUi.Components.Pages.Admin.Academic.Courses;
 
 public sealed class CourseListItemVm
 {
     public Guid Id { get; set; }
+
+    public Guid MajorId { get; set; }
+
     public string MajorTitle { get; set; } = string.Empty;
+
     public string Title { get; set; } = string.Empty;
+
     public string Code { get; set; } = string.Empty;
+
     public int Units { get; set; }
+
+    public CourseEnrollmentScope EnrollmentScope { get; set; }
+
     public bool IsActive { get; set; }
 }
 
 public sealed class LookupItemVm
 {
     public Guid Id { get; set; }
+
     public string Title { get; set; } = string.Empty;
 }
 
@@ -34,5 +45,12 @@ public sealed class CourseFormModel
     [Range(1, 30, ErrorMessage = "تعداد واحد باید بین 1 تا 30 باشد.")]
     public int Units { get; set; } = 3;
 
-    public IReadOnlyList<LookupItemVm> Majors { get; set; } = Array.Empty<LookupItemVm>();
+    [Required(ErrorMessage = "محدوده ثبت‌نام الزامی است.")]
+    public CourseEnrollmentScope EnrollmentScope { get; set; }
+        = CourseEnrollmentScope.OwningMajorOnly;
+
+    public bool IsActive { get; set; } = true;
+
+    public IReadOnlyList<LookupItemVm> Majors { get; set; }
+        = Array.Empty<LookupItemVm>();
 }

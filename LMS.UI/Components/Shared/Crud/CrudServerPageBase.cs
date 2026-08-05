@@ -8,11 +8,16 @@ public abstract class CrudServerPageBase<TItem> : ComponentBase
     [Inject]
     protected IDialogService DialogService { get; set; } = default!;
 
+    // برای سازگاری با صفحات قبلی
     protected MudTable<TItem>? CrudTable;
+
+    // برای کامپوننت مشترک جدید CrudTable
+    protected CrudTable<TItem>?
+        CrudTableReference;
 
     protected async Task OpenDialogAndReloadAsync<TDialog>(
         string title,
-        DialogParameters<TDialog> parameters,
+        DialogParameters parameters,
         MaxWidth maxWidth)
         where TDialog : IComponent
     {
@@ -38,6 +43,12 @@ public abstract class CrudServerPageBase<TItem> : ComponentBase
 
     protected async Task ReloadAsync()
     {
+        if (CrudTableReference is not null)
+        {
+            await CrudTableReference.ReloadServerDataAsync();
+            return;
+        }
+
         if (CrudTable is not null)
             await CrudTable.ReloadServerData();
     }

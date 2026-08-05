@@ -1,0 +1,13 @@
+﻿@page "/admin/students"
+@using Common.Security
+@using WebUi.Components.Pages.Admin.Users
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(
+    Policy = Permissions.Students.View)]
+
+<PageTitle>مدیریت دانشجویان</PageTitle>
+
+<UserManagementPage ProfileType="UserProfileTypeVm.Student"
+                    Title="مدیریت دانشجویان"
+                    CreateRoute="/admin/students/create"
+                    CreatePermission="@Permissions.Students.Create"
+                    EditPermission="@Permissions.Students.Edit" />

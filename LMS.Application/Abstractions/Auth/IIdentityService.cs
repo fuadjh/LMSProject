@@ -32,4 +32,23 @@ public interface IIdentityService
     Task<IReadOnlyCollection<string>> GetUserRolesAsync(
         Guid authUserId,
         CancellationToken cancellationToken = default);
+
+    Task AddUserToRoleAsync(
+    Guid authUserId,
+    string role,
+    CancellationToken cancellationToken = default);
+
+    Task UpdateUserEmailAsync(
+        Guid authUserId,
+        string email,
+        CancellationToken cancellationToken = default);
+
+    Task SetUserActiveStatusAsync(
+        Guid authUserId,
+        bool isActive,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteUserAsync(
+        Guid authUserId,
+        CancellationToken cancellationToken = default);
 }
