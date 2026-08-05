@@ -61,15 +61,19 @@ public sealed class SetUserScopesCommandHandler
                     "یک یا چند دانشکده معتبر نیست."));
         }
 
-        var validMajorIds =
-            await _dbContext.Majors
-                .Where(x =>
-                    majorIds.Contains(x.Id) &&
-                    x.IsActive)
-                .Select(x => x.Id)
-                .ToListAsync(cancellationToken);
+        var validMajors =
+     await _dbContext.Majors
+         .Where(x =>
+             majorIds.Contains(x.Id) &&
+             x.IsActive)
+         .Select(x => new
+         {
+             x.Id,
+             x.FacultyId
+         })
+         .ToListAsync(cancellationToken);
 
-        if (majorIds.Except(validMajorIds).Any())
+        if (majorIds.Except(validMajors.Select(x => x.Id)).Any())
         {
             return Result.Invalid(
                 Error.Validation(
@@ -77,6 +81,17 @@ public sealed class SetUserScopesCommandHandler
                     "یک یا چند رشته معتبر نیست."));
         }
 
+        var hasFacultyMismatch =
+            validMajors.Any(
+                major => !facultyIds.Contains(major.FacultyId));
+
+        if (hasFacultyMismatch)
+        {
+            return Result.Invalid(
+                Error.Validation(
+                    "majorIds",
+                    "دانشکده مربوط به تمام رشته‌های انتخاب‌شده باید در محدوده دانشکده‌ها قرار داشته باشد."));
+        }
         userProfile.SetFacultyScopes(facultyIds);
         userProfile.SetMajorScopes(majorIds);
 

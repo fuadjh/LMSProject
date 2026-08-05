@@ -1,49 +1,116 @@
 @page "/admin/education-experts/create"
 @using Common.Security
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Policy = Permissions.EducationExperts.Create)]
-@using System.Net.Http.Json
 @using MudBlazor
-@inject HttpClient Http
+@using WebUi.Components.Pages.Admin.Users
+
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(
+    Policy = Permissions.EducationExperts.Create)]
+@inject UserManagementApiClient ApiClient
 @inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>افزودن کارشناس آموزش</PageTitle>
 
 <MudPaper Class="pa-4">
-    <MudText Typo="Typo.h5">افزودن کارشناس آموزش</MudText>
+    <MudText Typo="Typo.h5">
+        افزودن کارشناس آموزش
+    </MudText>
 
-    <MudGrid Class="mt-2">
-        <MudItem xs="12" md="6"><MudTextField @bind-Value="_model.FirstName" Label="نام" Variant="Variant.Outlined" /></MudItem>
-        <MudItem xs="12" md="6"><MudTextField @bind-Value="_model.LastName" Label="نام خانوادگی" Variant="Variant.Outlined" /></MudItem>
-        <MudItem xs="12" md="6"><MudTextField @bind-Value="_model.UserName" Label="نام کاربری" Variant="Variant.Outlined" /></MudItem>
-        <MudItem xs="12" md="6"><MudTextField @bind-Value="_model.Email" Label="ایمیل" Variant="Variant.Outlined" /></MudItem>
-        <MudItem xs="12" md="6"><MudTextField @bind-Value="_model.Password" Label="رمز عبور" InputType="InputType.Password" Variant="Variant.Outlined" /></MudItem>
-        <MudItem xs="12" md="6"><MudTextField @bind-Value="_model.EmployeeCode" Label="کد کارمندی" Variant="Variant.Outlined" /></MudItem>
-    </MudGrid>
+    <EditForm Model="_model"
+              OnValidSubmit="SubmitAsync">
 
-    <MudButton Class="mt-4" Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync">ثبت کارشناس</MudButton>
+        <DataAnnotationsValidator />
+
+        <PersonIdentityFields Model="_model"
+                              ExistingPerson="_existingPerson"
+                              Busy="_checkingNationalCode"
+                              OnCheckNationalCode="CheckNationalCodeAsync" />
+
+        @if (_existingPerson?.HasEducationExpertProfile == true)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">
+                این شخص قبلاً دارای پروفایل کارشناس آموزش است.
+            </MudAlert>
+        }
+
+        <MudGrid Class="mt-4">
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.EmployeeCode"
+                              Label="کد کارمندی"
+                              Variant="Variant.Outlined"
+                              For="@(() => _model.EmployeeCode)" />
+            </MudItem>
+        </MudGrid>
+
+        <MudButton Class="mt-4"
+                   ButtonType="ButtonType.Submit"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="_saving || _existingPerson?.HasEducationExpertProfile == true">
+            @(_saving ? "در حال ثبت..." : "ثبت کارشناس آموزش")
+        </MudButton>
+    </EditForm>
 </MudPaper>
 
 @code {
-    private CreateEducationExpertVm _model = new();
+    private readonly CreateEducationExpertVm _model = new();
 
-    private async Task SubmitAsync()
+    private ExistingPersonVm? _existingPerson;
+    private bool _checkingNationalCode;
+    private bool _saving;
+
+    private async Task CheckNationalCodeAsync()
     {
-        var response = await Http.PostAsJsonAsync("api/education-experts", _model);
-        if (!response.IsSuccessStatusCode)
+        if (string.IsNullOrWhiteSpace(_model.NationalCode))
         {
-            Snackbar.Add(await WebUi.Services.ApiErrorReader.ReadErrorAsync(response), Severity.Error);
+            Snackbar.Add(
+                "کد ملی را وارد کنید.",
+                Severity.Warning);
+
             return;
         }
 
-        Snackbar.Add("کارشناس آموزش ایجاد شد.", Severity.Success);
-        _model = new();
+        _checkingNationalCode = true;
+
+        try
+        {
+            _existingPerson =
+                await ApiClient.GetByNationalCodeAsync(
+                    _model.NationalCode);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _checkingNationalCode = false;
+        }
     }
 
-    private sealed class CreateEducationExpertVm
+    private async Task SubmitAsync()
     {
-        public string UserName { get; set; } = "";
-        public string Email { get; set; } = "";
-        public string Password { get; set; } = "";
-        public string FirstName { get; set; } = "";
-        public string LastName { get; set; } = "";
-        public string EmployeeCode { get; set; } = "";
+        _saving = true;
+
+        try
+        {
+            await ApiClient.CreateEducationExpertAsync(
+                _model);
+
+            Snackbar.Add(
+                "پروفایل کارشناس آموزش ثبت شد.",
+                Severity.Success);
+
+            Navigation.NavigateTo(
+                "/admin/education-experts");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 }

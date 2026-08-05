@@ -26,36 +26,79 @@ public sealed class CreateInstructorCommandHandler
         CreateInstructorCommand request,
         CancellationToken cancellationToken)
     {
-        if (await _identityService.ExistsByUserNameAsync(
-                request.UserName,
-                cancellationToken))
+        var nationalCode =
+            UserProfile.NormalizeNationalCode(request.NationalCode);
+
+        if (!UserProfile.IsValidNationalCode(nationalCode))
         {
-            return Result<Guid>.Conflict(
-                "user.username_exists",
-                "نام کاربری تکراری است.");
+            return Result<Guid>.Invalid(
+                Error.Validation(
+                    "nationalCode",
+                    "کد ملی معتبر نیست."));
         }
 
-        if (await _identityService.ExistsByEmailAsync(
-                request.Email,
-                cancellationToken))
-        {
-            return Result<Guid>.Conflict(
-                "user.email_exists",
-                "ایمیل تکراری است.");
-        }
+        var normalizedPersonnelCode =
+            request.PersonnelCode.Trim();
 
-        var codeExists =
+        var personnelCodeExists =
             await _dbContext.InstructorProfiles.AnyAsync(
-                x =>
-                    x.PersonnelCode ==
-                    request.PersonnelCode.Trim(),
+                x => x.PersonnelCode == normalizedPersonnelCode,
                 cancellationToken);
 
-        if (codeExists)
+        if (personnelCodeExists)
         {
             return Result<Guid>.Conflict(
-                "instructor.code_exists",
+                "instructor.personnel_code_exists",
                 "کد پرسنلی تکراری است.");
+        }
+
+        var existingUserProfile =
+            await _dbContext.UserProfiles
+                .SingleOrDefaultAsync(
+                    x => x.NationalCode == nationalCode,
+                    cancellationToken);
+
+        var existingInstructorProfile =
+            existingUserProfile is null
+                ? null
+                : await _dbContext.InstructorProfiles
+                    .SingleOrDefaultAsync(
+                        x => x.UserProfileId == existingUserProfile.Id,
+                        cancellationToken);
+
+        if (existingInstructorProfile is not null)
+        {
+            return Result<Guid>.Conflict(
+                "instructor.profile_exists",
+                "این شخص قبلاً پروفایل استادی دارد.");
+        }
+
+        if (existingUserProfile is null)
+        {
+            var credentialsResult =
+                ValidateNewUserCredentials(request);
+
+            if (!credentialsResult.IsSuccess)
+                return Result<Guid>.Invalid(
+                    credentialsResult.Errors);
+
+            if (await _identityService.ExistsByUserNameAsync(
+                    request.UserName,
+                    cancellationToken))
+            {
+                return Result<Guid>.Conflict(
+                    "user.username_exists",
+                    "نام کاربری تکراری است.");
+            }
+
+            if (await _identityService.ExistsByEmailAsync(
+                    request.Email,
+                    cancellationToken))
+            {
+                return Result<Guid>.Conflict(
+                    "user.email_exists",
+                    "ایمیل تکراری است.");
+            }
         }
 
         await using var transaction =
@@ -64,27 +107,42 @@ public sealed class CreateInstructorCommandHandler
 
         try
         {
-            var authUserId =
-                await _identityService.CreateUserAsync(
-                    request.UserName.Trim(),
-                    request.Email.Trim(),
-                    request.Password,
-                    [RoleNames.Instructor],
-                    cancellationToken);
+            UserProfile userProfile;
 
-            var userProfile = UserProfile.Create(
-                authUserId,
-                request.FirstName,
-                request.LastName);
+            if (existingUserProfile is not null)
+            {
+                userProfile = existingUserProfile;
+
+                await _identityService.AddUserToRoleAsync(
+                    userProfile.AuthUserId,
+                    RoleNames.Instructor,
+                    cancellationToken);
+            }
+            else
+            {
+                var authUserId =
+                    await _identityService.CreateUserAsync(
+                        request.UserName.Trim(),
+                        request.Email.Trim(),
+                        request.Password,
+                        [RoleNames.Instructor],
+                        cancellationToken);
+
+                userProfile = UserProfile.Create(
+                    authUserId,
+                    request.FirstName,
+                    request.LastName,
+                    nationalCode);
+
+                await _dbContext.AddAsync(
+                    userProfile,
+                    cancellationToken);
+            }
 
             var instructorProfile =
                 InstructorProfile.Create(
                     userProfile.Id,
-                    request.PersonnelCode);
-
-            await _dbContext.AddAsync(
-                userProfile,
-                cancellationToken);
+                    normalizedPersonnelCode);
 
             await _dbContext.AddAsync(
                 instructorProfile,
@@ -96,7 +154,17 @@ public sealed class CreateInstructorCommandHandler
             await transaction.CommitAsync(
                 cancellationToken);
 
-            return Result<Guid>.Success(userProfile.Id);
+            return Result<Guid>.Success(
+                userProfile.Id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await transaction.RollbackAsync(
+                cancellationToken);
+
+            return Result<Guid>.Conflict(
+                "instructor.create_conflict",
+                ex.Message);
         }
         catch (Exception ex)
         {
@@ -107,5 +175,55 @@ public sealed class CreateInstructorCommandHandler
                 "instructor.create_failed",
                 ex.Message);
         }
+    }
+
+    private static Result ValidateNewUserCredentials(
+        CreateInstructorCommand request)
+    {
+        var errors = new List<Error>();
+
+        if (string.IsNullOrWhiteSpace(request.UserName))
+        {
+            errors.Add(
+                Error.Validation(
+                    "userName",
+                    "نام کاربری برای شخص جدید الزامی است."));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            errors.Add(
+                Error.Validation(
+                    "email",
+                    "ایمیل برای شخص جدید الزامی است."));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            errors.Add(
+                Error.Validation(
+                    "password",
+                    "رمز عبور برای شخص جدید الزامی است."));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.FirstName))
+        {
+            errors.Add(
+                Error.Validation(
+                    "firstName",
+                    "نام برای شخص جدید الزامی است."));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.LastName))
+        {
+            errors.Add(
+                Error.Validation(
+                    "lastName",
+                    "نام خانوادگی برای شخص جدید الزامی است."));
+        }
+
+        return errors.Count == 0
+            ? Result.Success()
+            : Result.Invalid(errors);
     }
 }

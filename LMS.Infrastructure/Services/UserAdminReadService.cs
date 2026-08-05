@@ -86,4 +86,19 @@ public sealed class UserAdminReadService : IUserAdminReadService
             facultyIds,
             majorIds);
     }
+
+    public Task<PagedResponse<UserProfileListItemDto>> GetUsersAsync(UserProfileType profileType, string? search, int pageNumber, int pageSize, string? sortBy, bool sortDescending, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<UserProfileDetailsDto?> GetUserProfileDetailsAsync(Guid userProfileId, UserProfileType profileType, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<UserByNationalCodeDto?> GetUserByNationalCodeAsync(string nationalCode, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
 }

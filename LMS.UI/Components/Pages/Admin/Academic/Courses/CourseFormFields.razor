@@ -1,18 +1,20 @@
-﻿@using MudBlazor
+﻿@using Common.Enums
+@using MudBlazor
 @using WebUi.Components.Pages.Admin.Academic.Courses
-
 
 <MudGrid>
     <MudItem xs="12">
         <MudSelect T="Guid?"
-        @bind-Value="Model.MajorId"
-        Label="رشته"
-        Variant="Variant.Outlined"
-        For="@(() => Model.MajorId)"
-        Disabled="@Model.Id.HasValue">
+                   @bind-Value="Model.MajorId"
+                   Label="رشته"
+                   Variant="Variant.Outlined"
+                   For="@(() => Model.MajorId)"
+                   Disabled="@Model.Id.HasValue">
+
             @foreach (var major in Model.Majors)
             {
-                <MudSelectItem T="Guid?" Value="@((Guid?)major.Id)">
+                <MudSelectItem T="Guid?"
+                               Value="@((Guid?)major.Id)">
                     @major.Title
                 </MudSelectItem>
             }
@@ -21,31 +23,59 @@
 
     <MudItem xs="12" md="4">
         <MudTextField T="string"
-        @bind-Value="Model.Code"
-        Label="کد درس"
-        Variant="Variant.Outlined"
-        For="@(() => Model.Code)"
-        Immediate="true" />
+                      @bind-Value="Model.Code"
+                      Label="کد درس"
+                      Variant="Variant.Outlined"
+                      For="@(() => Model.Code)"
+                      Immediate="true" />
     </MudItem>
 
     <MudItem xs="12" md="8">
         <MudTextField T="string"
-        @bind-Value="Model.Title"
-        Label="عنوان درس"
-        Variant="Variant.Outlined"
-        For="@(() => Model.Title)"
-        Immediate="true" />
+                      @bind-Value="Model.Title"
+                      Label="عنوان درس"
+                      Variant="Variant.Outlined"
+                      For="@(() => Model.Title)"
+                      Immediate="true" />
     </MudItem>
 
     <MudItem xs="12" md="4">
         <MudNumericField T="int"
-        @bind-Value="Model.Units"
-        Label="تعداد واحد"
-        Variant="Variant.Outlined"
-        For="@(() => Model.Units)"
-        Min="1"
-        Max="30" />
+                         @bind-Value="Model.Units"
+                         Label="تعداد واحد"
+                         Variant="Variant.Outlined"
+                         For="@(() => Model.Units)"
+                         Min="1"
+                         Max="30" />
     </MudItem>
+
+    <MudItem xs="12" md="8">
+        <MudSelect T="CourseEnrollmentScope"
+                   @bind-Value="Model.EnrollmentScope"
+                   Label="محدوده ثبت‌نام"
+                   Variant="Variant.Outlined"
+                   For="@(() => Model.EnrollmentScope)">
+
+            <MudSelectItem Value="CourseEnrollmentScope.OwningMajorOnly">
+                فقط رشته مالک
+            </MudSelectItem>
+
+            <MudSelectItem Value="CourseEnrollmentScope.AllMajors">
+                همه رشته‌ها
+            </MudSelectItem>
+        </MudSelect>
+    </MudItem>
+
+    @if (Model.Id.HasValue)
+    {
+        <MudItem xs="12">
+            <MudSwitch T="bool"
+                       @bind-Value="Model.IsActive"
+                       Color="Color.Primary">
+                @(Model.IsActive ? "درس فعال است" : "درس غیرفعال است")
+            </MudSwitch>
+        </MudItem>
+    }
 </MudGrid>
 
 @code {

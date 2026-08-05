@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using MudBlazor.Services;
 using WebUi.Components.Pages.Admin.Academic.Courses;
+using WebUi.Components.Pages.Admin.Users;
 using WebUi.Components.Shared.Crud;
 var builder = WebApplication.CreateBuilder(args);
 
@@ -90,7 +91,7 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddScoped<
     ApiCookieForwardingHandler>();
-
+builder.Services.AddScoped<UserManagementApiClient>();
 builder.Services
     .AddHttpClient(
         "Api",
@@ -117,9 +118,7 @@ builder.Services.AddScoped(provider =>
     provider
         .GetRequiredService<IHttpClientFactory>()
         .CreateClient("Api"));
-builder.Services.AddScoped<
-    ICrudPageService<CourseListItemVm, CourseFormModel, Guid>,
-    CourseApiClient>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

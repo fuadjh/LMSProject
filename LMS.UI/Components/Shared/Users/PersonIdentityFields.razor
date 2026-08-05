@@ -1,0 +1,80 @@
+﻿@using MudBlazor
+@using WebUi.Components.Pages.Admin.Users
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <MudTextField @bind-Value="Model.NationalCode"
+                      Label="کد ملی"
+                      Variant="Variant.Outlined"
+                      Disabled="Busy" />
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Primary"
+                   Disabled="Busy"
+                   OnClick="@(() => OnCheckNationalCode.InvokeAsync())">
+            @(Busy ? "در حال بررسی..." : "بررسی کد ملی")
+        </MudButton>
+    </MudItem>
+
+    @if (ExistingPerson is not null)
+    {
+        <MudItem xs="12">
+            <MudAlert Severity="Severity.Info">
+                این کد ملی متعلق به
+                <strong>@ExistingPerson.FullName</strong>
+                با نام کاربری
+                <strong>@ExistingPerson.UserName</strong>
+                است. پروفایل جدید به همین حساب افزوده می‌شود.
+            </MudAlert>
+        </MudItem>
+    }
+    else
+    {
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="Model.FirstName"
+                          Label="نام"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="Model.LastName"
+                          Label="نام خانوادگی"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="Model.UserName"
+                          Label="نام کاربری"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="Model.Email"
+                          Label="ایمیل"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudTextField @bind-Value="Model.Password"
+                          Label="رمز عبور"
+                          InputType="InputType.Password"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    [Parameter, EditorRequired]
+    public CreateUserBaseVm Model { get; set; } = default!;
+
+    [Parameter]
+    public ExistingPersonVm? ExistingPerson { get; set; }
+
+    [Parameter]
+    public bool Busy { get; set; }
+
+    [Parameter]
+    public EventCallback OnCheckNationalCode { get; set; }
+}

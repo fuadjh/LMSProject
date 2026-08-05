@@ -1,0 +1,148 @@
+﻿@using MudBlazor
+@using WebUi.Components.Pages.Admin.Users
+@using WebUi.Components.Shared.Crud
+@inject UserManagementApiClient ApiClient
+@inject ISnackbar Snackbar
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <CrudDialogForm TModel="UserEditModel"
+                    Title="ویرایش اطلاعات کاربر"
+                    Model="_model"
+                    SubmitText="ذخیره تغییرات"
+                    OnValidSubmit="SaveAsync">
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField Value="@_details.NationalCode"
+                              Label="کد ملی"
+                              ReadOnly="true"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudTextField Value="@_details.UserName"
+                              Label="نام کاربری"
+                              ReadOnly="true"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudTextField Value="@_details.ProfileCode"
+                              Label="@ProfileCodeLabel"
+                              ReadOnly="true"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+
+            @if (ProfileType == UserProfileTypeVm.Student)
+            {
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@_details.MajorTitle"
+                                  Label="رشته"
+                                  ReadOnly="true"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+            }
+
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.FirstName"
+                              Label="نام"
+                              Variant="Variant.Outlined"
+                              For="@(() => _model.FirstName)" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.LastName"
+                              Label="نام خانوادگی"
+                              Variant="Variant.Outlined"
+                              For="@(() => _model.LastName)" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_model.Email"
+                              Label="ایمیل"
+                              Variant="Variant.Outlined"
+                              For="@(() => _model.Email)" />
+            </MudItem>
+        </MudGrid>
+    </CrudDialogForm>
+}
+
+@code {
+    [Parameter]
+    public Guid UserProfileId { get; set; }
+
+    [Parameter]
+    public UserProfileTypeVm ProfileType { get; set; }
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private bool _loading = true;
+    private UserProfileDetailsVm _details = new();
+    private UserEditModel _model = new();
+
+    private string ProfileCodeLabel =>
+        ProfileType switch
+        {
+            UserProfileTypeVm.Student => "شماره دانشجویی",
+            UserProfileTypeVm.Instructor => "کد پرسنلی",
+            UserProfileTypeVm.EducationExpert => "کد کارمندی",
+            _ => "کد"
+        };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _details = await ApiClient.GetDetailsAsync(
+                ProfileType,
+                UserProfileId);
+
+            _model = new UserEditModel
+            {
+                UserProfileId = _details.UserProfileId,
+                FirstName = _details.FirstName,
+                LastName = _details.LastName,
+                Email = _details.Email
+            };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+            MudDialog.Cancel();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync(
+        UserEditModel model)
+    {
+        try
+        {
+            await ApiClient.UpdateAsync(
+                ProfileType,
+                model);
+
+            Snackbar.Add(
+                "اطلاعات کاربر ویرایش شد.",
+                Severity.Success);
+
+            MudDialog.Close(
+                DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(
+                ex.Message,
+                Severity.Error);
+        }
+    }
+}

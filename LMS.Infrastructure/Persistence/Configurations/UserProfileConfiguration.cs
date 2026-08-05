@@ -16,7 +16,13 @@ public sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserProf
         builder.Property(x => x.FirstName).HasMaxLength(100).IsRequired();
         builder.Property(x => x.LastName).HasMaxLength(100).IsRequired();
         builder.Property(x => x.IsActive).IsRequired();
+        builder.Property(x => x.NationalCode)
+    .HasMaxLength(10)
+    .IsUnicode(false);
 
+        builder.HasIndex(x => x.NationalCode)
+            .IsUnique()
+            .HasFilter("[NationalCode] IS NOT NULL");
         builder.HasIndex(x => x.AuthUserId).IsUnique();
 
         builder.HasMany(x => x.FacultyScopes)
