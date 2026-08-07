@@ -1,26 +1,49 @@
+using Common.Enums;
 using Domain.Common;
 
 namespace Domain.Entities.Users;
 
 public sealed class UserMajorScope : BaseEntity
 {
-    private UserMajorScope() { }
+    private UserMajorScope()
+    {
+    }
 
-    public Guid UserProfileId { get; private set; }
+    public Guid UserId { get; private set; }
+
+    public UserRoleType RoleType { get; private set; }
+
     public Guid MajorId { get; private set; }
 
-    public static UserMajorScope Create(Guid userProfileId, Guid majorId)
+    public static UserMajorScope Create(
+        Guid userId,
+        UserRoleType roleType,
+        Guid majorId)
     {
-        if (userProfileId == Guid.Empty)
-            throw new ArgumentException("UserProfileId is required.");
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "شناسه کاربر الزامی است.",
+                nameof(userId));
+        }
+
+        if (!Enum.IsDefined(roleType))
+        {
+            throw new ArgumentOutOfRangeException(nameof(roleType));
+        }
 
         if (majorId == Guid.Empty)
-            throw new ArgumentException("MajorId is required.");
+        {
+            throw new ArgumentException(
+                "شناسه رشته الزامی است.",
+                nameof(majorId));
+        }
 
         return new UserMajorScope
         {
             Id = Guid.NewGuid(),
-            UserProfileId = userProfileId,
+            UserId = userId,
+            RoleType = roleType,
             MajorId = majorId
         };
     }

@@ -1,15 +1,18 @@
-﻿@using MudBlazor
+﻿@namespace LMS.UI.Components.Shared.Users
+@using MudBlazor
 @using WebUi.Components.Pages.Admin.Users
 
 <MudGrid>
     <MudItem xs="12" md="6">
-        <MudTextField @bind-Value="Model.NationalCode"
+        <MudTextField T="string"
+                      @bind-Value="Model.NationalCode"
                       Label="کد ملی"
                       Variant="Variant.Outlined"
                       Disabled="Busy" />
     </MudItem>
 
-    <MudItem xs="12" md="6">
+    <MudItem xs="12" md="6"
+             Class="d-flex align-center">
         <MudButton Variant="Variant.Outlined"
                    Color="Color.Primary"
                    Disabled="Busy"
@@ -21,7 +24,8 @@
     @if (ExistingPerson is not null)
     {
         <MudItem xs="12">
-            <MudAlert Severity="Severity.Info">
+            <MudAlert Severity="Severity.Info"
+                      Variant="Variant.Filled">
                 این کد ملی متعلق به
                 <strong>@ExistingPerson.FullName</strong>
                 با نام کاربری
@@ -33,31 +37,36 @@
     else
     {
         <MudItem xs="12" md="6">
-            <MudTextField @bind-Value="Model.FirstName"
+            <MudTextField T="string"
+                          @bind-Value="Model.FirstName"
                           Label="نام"
                           Variant="Variant.Outlined" />
         </MudItem>
 
         <MudItem xs="12" md="6">
-            <MudTextField @bind-Value="Model.LastName"
+            <MudTextField T="string"
+                          @bind-Value="Model.LastName"
                           Label="نام خانوادگی"
                           Variant="Variant.Outlined" />
         </MudItem>
 
         <MudItem xs="12" md="6">
-            <MudTextField @bind-Value="Model.UserName"
+            <MudTextField T="string"
+                          @bind-Value="Model.UserName"
                           Label="نام کاربری"
                           Variant="Variant.Outlined" />
         </MudItem>
 
         <MudItem xs="12" md="6">
-            <MudTextField @bind-Value="Model.Email"
+            <MudTextField T="string"
+                          @bind-Value="Model.Email"
                           Label="ایمیل"
                           Variant="Variant.Outlined" />
         </MudItem>
 
         <MudItem xs="12" md="6">
-            <MudTextField @bind-Value="Model.Password"
+            <MudTextField T="string"
+                          @bind-Value="Model.Password"
                           Label="رمز عبور"
                           InputType="InputType.Password"
                           Variant="Variant.Outlined" />

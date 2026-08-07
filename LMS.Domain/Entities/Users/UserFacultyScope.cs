@@ -1,26 +1,49 @@
+using Common.Enums;
 using Domain.Common;
 
 namespace Domain.Entities.Users;
 
 public sealed class UserFacultyScope : BaseEntity
 {
-    private UserFacultyScope() { }
+    private UserFacultyScope()
+    {
+    }
 
-    public Guid UserProfileId { get; private set; }
+    public Guid UserId { get; private set; }
+
+    public UserRoleType RoleType { get; private set; }
+
     public Guid FacultyId { get; private set; }
 
-    public static UserFacultyScope Create(Guid userProfileId, Guid facultyId)
+    public static UserFacultyScope Create(
+        Guid userId,
+        UserRoleType roleType,
+        Guid facultyId)
     {
-        if (userProfileId == Guid.Empty)
-            throw new ArgumentException("UserProfileId is required.");
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "شناسه کاربر الزامی است.",
+                nameof(userId));
+        }
+
+        if (!Enum.IsDefined(roleType))
+        {
+            throw new ArgumentOutOfRangeException(nameof(roleType));
+        }
 
         if (facultyId == Guid.Empty)
-            throw new ArgumentException("FacultyId is required.");
+        {
+            throw new ArgumentException(
+                "شناسه دانشکده الزامی است.",
+                nameof(facultyId));
+        }
 
         return new UserFacultyScope
         {
             Id = Guid.NewGuid(),
-            UserProfileId = userProfileId,
+            UserId = userId,
+            RoleType = roleType,
             FacultyId = facultyId
         };
     }

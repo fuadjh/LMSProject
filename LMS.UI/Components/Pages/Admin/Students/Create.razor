@@ -2,13 +2,14 @@
 @using Common.Security
 @using MudBlazor
 @using WebUi.Components.Pages.Admin.Users
+@using LMS.UI.Components.Shared.Users
 
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(
     Policy = Permissions.Students.Create)]
+
 @inject UserManagementApiClient ApiClient
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
-
 <PageTitle>افزودن دانشجو</PageTitle>
 
 <MudPaper Class="pa-4">

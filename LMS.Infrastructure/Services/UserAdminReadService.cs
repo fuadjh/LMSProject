@@ -248,7 +248,7 @@ public sealed class UserAdminReadService : IUserAdminReadService
     }
 
     private IQueryable<UserRow> BuildProfileQuery(
-        UserProfileType profileType)
+    UserProfileType profileType)
     {
         return profileType switch
         {
@@ -260,61 +260,65 @@ public sealed class UserAdminReadService : IUserAdminReadService
                     on profile.Id equals student.UserProfileId
                 join major in _dbContext.Majors.AsNoTracking()
                     on student.MajorId equals major.Id
-                select new UserRow(
-                    profile.Id,
-                    profile.AuthUserId,
-                    profile.NationalCode,
-                    user.UserName ?? string.Empty,
-                    user.Email ?? string.Empty,
-                    profile.FirstName,
-                    profile.LastName,
-                    student.StudentNumber,
-                    student.MajorId,
-                    major.FacultyId,
-                    major.Title,
-                    profile.IsActive && user.IsActive),
+                select new UserRow
+                {
+                    UserProfileId = profile.Id,
+                    AuthUserId = profile.AuthUserId,
+                    NationalCode = profile.NationalCode,
+                    UserName = user.UserName ?? string.Empty,
+                    Email = user.Email ?? string.Empty,
+                    FirstName = profile.FirstName,
+                    LastName = profile.LastName,
+                    ProfileCode = student.StudentNumber,
+                    MajorId = student.MajorId,
+                    FacultyId = major.FacultyId,
+                    MajorTitle = major.Title,
+                    IsActive = profile.IsActive && user.IsActive
+                },
 
             UserProfileType.Instructor =>
                 from profile in _dbContext.UserProfiles.AsNoTracking()
                 join user in _dbContext.Users.AsNoTracking()
                     on profile.AuthUserId equals user.Id
-                join instructor in
-                    _dbContext.InstructorProfiles.AsNoTracking()
+                join instructor in _dbContext.InstructorProfiles.AsNoTracking()
                     on profile.Id equals instructor.UserProfileId
-                select new UserRow(
-                    profile.Id,
-                    profile.AuthUserId,
-                    profile.NationalCode,
-                    user.UserName ?? string.Empty,
-                    user.Email ?? string.Empty,
-                    profile.FirstName,
-                    profile.LastName,
-                    instructor.PersonnelCode,
-                    null,
-                    null,
-                    null,
-                    profile.IsActive && user.IsActive),
+                select new UserRow
+                {
+                    UserProfileId = profile.Id,
+                    AuthUserId = profile.AuthUserId,
+                    NationalCode = profile.NationalCode,
+                    UserName = user.UserName ?? string.Empty,
+                    Email = user.Email ?? string.Empty,
+                    FirstName = profile.FirstName,
+                    LastName = profile.LastName,
+                    ProfileCode = instructor.PersonnelCode,
+                    MajorId = null,
+                    FacultyId = null,
+                    MajorTitle = null,
+                    IsActive = profile.IsActive && user.IsActive
+                },
 
             UserProfileType.EducationExpert =>
                 from profile in _dbContext.UserProfiles.AsNoTracking()
                 join user in _dbContext.Users.AsNoTracking()
                     on profile.AuthUserId equals user.Id
-                join expert in
-                    _dbContext.EducationExpertProfiles.AsNoTracking()
+                join expert in _dbContext.EducationExpertProfiles.AsNoTracking()
                     on profile.Id equals expert.UserProfileId
-                select new UserRow(
-                    profile.Id,
-                    profile.AuthUserId,
-                    profile.NationalCode,
-                    user.UserName ?? string.Empty,
-                    user.Email ?? string.Empty,
-                    profile.FirstName,
-                    profile.LastName,
-                    expert.EmployeeCode,
-                    null,
-                    null,
-                    null,
-                    profile.IsActive && user.IsActive),
+                select new UserRow
+                {
+                    UserProfileId = profile.Id,
+                    AuthUserId = profile.AuthUserId,
+                    NationalCode = profile.NationalCode,
+                    UserName = user.UserName ?? string.Empty,
+                    Email = user.Email ?? string.Empty,
+                    FirstName = profile.FirstName,
+                    LastName = profile.LastName,
+                    ProfileCode = expert.EmployeeCode,
+                    MajorId = null,
+                    FacultyId = null,
+                    MajorTitle = null,
+                    IsActive = profile.IsActive && user.IsActive
+                },
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(profileType),
@@ -381,17 +385,30 @@ public sealed class UserAdminReadService : IUserAdminReadService
         return roles.ToArray();
     }
 
-    private sealed record UserRow(
-        Guid UserProfileId,
-        Guid AuthUserId,
-        string? NationalCode,
-        string UserName,
-        string Email,
-        string FirstName,
-        string LastName,
-        string ProfileCode,
-        Guid? MajorId,
-        Guid? FacultyId,
-        string? MajorTitle,
-        bool IsActive);
+    private sealed class UserRow
+    {
+        public Guid UserProfileId { get; init; }
+
+        public Guid AuthUserId { get; init; }
+
+        public string? NationalCode { get; init; }
+
+        public string UserName { get; init; } = string.Empty;
+
+        public string Email { get; init; } = string.Empty;
+
+        public string FirstName { get; init; } = string.Empty;
+
+        public string LastName { get; init; } = string.Empty;
+
+        public string ProfileCode { get; init; } = string.Empty;
+
+        public Guid? MajorId { get; init; }
+
+        public Guid? FacultyId { get; init; }
+
+        public string? MajorTitle { get; init; }
+
+        public bool IsActive { get; init; }
+    }
 }

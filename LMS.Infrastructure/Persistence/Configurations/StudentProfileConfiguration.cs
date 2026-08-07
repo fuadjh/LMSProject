@@ -1,26 +1,45 @@
-﻿using Domain.Entities.Users;
+﻿using Domain.Entities.Academics;
+using Domain.Entities.Users;
+using Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Infrastructure.Persistence.Configurations;
 
-public sealed class StudentProfileConfiguration : IEntityTypeConfiguration<StudentProfile>
+public sealed class StudentProfileConfiguration
+    : IEntityTypeConfiguration<StudentProfile>
 {
-    public void Configure(EntityTypeBuilder<StudentProfile> builder)
+    public void Configure(
+        EntityTypeBuilder<StudentProfile> builder)
     {
         builder.ToTable("StudentProfiles");
 
-        builder.HasKey(x => x.Id);
+        builder.HasKey(profile => profile.Id);
 
-        builder.Property(x => x.StudentNumber).HasMaxLength(50).IsRequired();
-        builder.Property(x => x.MajorId).IsRequired();
+        builder.Property(profile => profile.Id)
+            .ValueGeneratedNever();
 
-        builder.HasIndex(x => x.StudentNumber).IsUnique();
-        builder.HasIndex(x => x.UserProfileId).IsUnique();
+        builder.Property(profile => profile.StudentNumber)
+            .HasMaxLength(50)
+            .IsUnicode(false)
+            .IsRequired();
 
-        builder.HasOne<UserProfile>()
-            .WithOne()
-            .HasForeignKey<StudentProfile>(x => x.UserProfileId)
+        builder.Property(profile => profile.IsActive)
+            .HasDefaultValue(true)
+            .IsRequired();
+
+        builder.HasIndex(profile => profile.StudentNumber)
+            .IsUnique()
+            .HasDatabaseName("UX_StudentProfiles_StudentNumber");
+
+        builder.HasOne<ApplicationUser>()
+            .WithOne(user => user.StudentProfile)
+            .HasForeignKey<StudentProfile>(profile => profile.Id)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<Major>()
+            .WithMany()
+            .HasForeignKey(profile => profile.MajorId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

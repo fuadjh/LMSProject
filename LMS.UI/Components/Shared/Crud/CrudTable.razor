@@ -77,7 +77,6 @@
             رکوردی برای نمایش وجود ندارد.
         </MudText>
     </NoRecordsContent>
-
     <PagerContent>
         @if (ShowPager)
         {
@@ -87,6 +86,17 @@
         }
     </PagerContent>
 </MudTable>
+@if (ServerData is not null)
+{
+    <PagerContent>
+        @if (ShowPager)
+        {
+            <MudTablePager PageSizeOptions="_pageSizeOptions"
+                           InfoFormat="{first_item}-{last_item} از {all_items}"
+                           RowsPerPageString="تعداد در صفحه" />
+        }
+    </PagerContent>
+}
 
 @code {
     private readonly int[] _pageSizeOptions = [10, 20, 50, 100];
@@ -140,4 +150,6 @@
         return _table?.ReloadServerData()
                ?? Task.CompletedTask;
     }
+
+
 }

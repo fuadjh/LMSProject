@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <Folder Include="DomainEvents\" />
-    <Folder Include="Entities\Users\" />
     <Folder Include="BusinessRules\" />
     <Folder Include="Interfaces\" />
     <Folder Include="ValueObjects\" />

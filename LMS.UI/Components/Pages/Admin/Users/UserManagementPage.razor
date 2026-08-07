@@ -20,25 +20,25 @@
         @Title
     </MudText>
 
-    <AuthorizeView Policy="@CreatePermission">
+   @*  <AuthorizeView Policy="@CreatePermission"> *@
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.Add"
                    OnClick="@(() => Navigation.NavigateTo(CreateRoute))">
             افزودن
         </MudButton>
-    </AuthorizeView>
+  @*   </AuthorizeView> *@
 </MudStack>
 
 <MudTextField T="string"
               Value="_search"
               ValueChanged="@(value => SearchChangedAsync(value))"
-              Immediate="true"
-              DebounceInterval="400"
-              Placeholder="جستجو براساس نام، نام کاربری، کد ملی یا کد تخصصی"
-              Adornment="Adornment.Start"
-              AdornmentIcon="@Icons.Material.Filled.Search"
-              Variant="Variant.Outlined" />
+                  Immediate="true"
+                  DebounceInterval="400"
+                  Placeholder="جستجو براساس نام، نام کاربری، کد ملی یا کد تخصصی"
+                  Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  Variant="Variant.Outlined" />
 
 
 <CrudTable TItem="UserProfileListItemVm"

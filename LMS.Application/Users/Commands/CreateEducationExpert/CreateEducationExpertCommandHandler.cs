@@ -143,7 +143,7 @@ public sealed class CreateEducationExpertCommandHandler
             }
 
             var educationExpertProfile =
-                EducationExpertProfile.Create(
+                ExpertProfile.Create(
                     userProfile.Id,
                     normalizedEmployeeCode);
 

@@ -10,17 +10,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Infrastructure.Persistence;
 
 public sealed class LmsDbContext
-    : IdentityDbContext<
-        ApplicationUser,
-        ApplicationRole,
-        Guid>,
+    : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>,
       IApplicationDbContext
 {
-    /// <summary>
-    /// فقط برای ابزارهای Design-Time مربوط به EF Core استفاده می‌شود.
-    /// در اجرای معمول برنامه، Constructor دارای DbContextOptions
-    /// توسط Dependency Injection فراخوانی می‌شود.
-    /// </summary>
     public LmsDbContext()
     {
     }
@@ -79,23 +71,17 @@ public sealed class LmsDbContext
     public IQueryable<LearningItem> LearningItems =>
         Set<LearningItem>();
 
-    public IQueryable<LearningItemProgress>
-        LearningItemProgresses =>
+    public IQueryable<LearningItemProgress> LearningItemProgresses =>
         Set<LearningItemProgress>();
 
     public IQueryable<LearningTemplate> LearningTemplates =>
         Set<LearningTemplate>();
 
-    public IQueryable<LearningTemplateModule>
-        LearningTemplateModules =>
+    public IQueryable<LearningTemplateModule> LearningTemplateModules =>
         Set<LearningTemplateModule>();
 
-    public IQueryable<LearningTemplateItem>
-        LearningTemplateItems =>
+    public IQueryable<LearningTemplateItem> LearningTemplateItems =>
         Set<LearningTemplateItem>();
-
-    public IQueryable<UserProfile> UserProfiles =>
-        Set<UserProfile>();
 
     public IQueryable<StudentProfile> StudentProfiles =>
         Set<StudentProfile>();
@@ -103,28 +89,42 @@ public sealed class LmsDbContext
     public IQueryable<InstructorProfile> InstructorProfiles =>
         Set<InstructorProfile>();
 
-    public IQueryable<EducationExpertProfile>
-        EducationExpertProfiles =>
-        Set<EducationExpertProfile>();
+    public IQueryable<ExpertProfile> ExpertProfiles =>
+        Set<ExpertProfile>();
+
+    public IQueryable<UserFacultyScope> UserFacultyScopes =>
+        Set<UserFacultyScope>();
+
+    public IQueryable<UserMajorScope> UserMajorScopes =>
+        Set<UserMajorScope>();
 
     public Task AddAsync<TEntity>(
         TEntity entity,
         CancellationToken cancellationToken = default)
-        where TEntity : class =>
-        Set<TEntity>()
+        where TEntity : class
+    {
+        return Set<TEntity>()
             .AddAsync(entity, cancellationToken)
             .AsTask();
+    }
 
-    public new Task<int> SaveChangesAsync(
-        CancellationToken cancellationToken = default) =>
-        base.SaveChangesAsync(cancellationToken);
+    public void Remove<TEntity>(TEntity entity)
+        where TEntity : class
+    {
+        Set<TEntity>().Remove(entity);
+    }
+
+    public Task<int> SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return base.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task<IAppTransaction> BeginTransactionAsync(
         CancellationToken cancellationToken = default)
     {
         var transaction =
-            await Database.BeginTransactionAsync(
-                cancellationToken);
+            await Database.BeginTransactionAsync(cancellationToken);
 
         return new EfAppTransaction(transaction);
     }
@@ -132,19 +132,15 @@ public sealed class LmsDbContext
     protected override void OnConfiguring(
         DbContextOptionsBuilder optionsBuilder)
     {
-        // هنگام اجرای عادی برنامه، تنظیمات توسط AddDbContext
-        // در WebApi اعمال شده‌اند و نباید بازنویسی شوند.
         if (optionsBuilder.IsConfigured)
         {
             return;
         }
 
-        // قابل تنظیم برای Migration و محیط‌های CI/CD.
         var connectionString =
             Environment.GetEnvironmentVariable(
                 "ConnectionStrings__DefaultConnection");
 
-        // مقدار جایگزین فقط برای Design-Time و محیط توسعه.
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             connectionString =
@@ -171,11 +167,5 @@ public sealed class LmsDbContext
 
         builder.ApplyConfigurationsFromAssembly(
             typeof(LmsDbContext).Assembly);
-    }
-
-    public void Remove<TEntity>(TEntity entity)
-     where TEntity : class
-    {
-        Set<TEntity>().Remove(entity);
     }
 }

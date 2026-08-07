@@ -1,25 +1,39 @@
 ﻿using Domain.Entities.Users;
+using Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Infrastructure.Persistence.Configurations;
 
-public sealed class InstructorProfileConfiguration : IEntityTypeConfiguration<InstructorProfile>
+public sealed class InstructorProfileConfiguration
+    : IEntityTypeConfiguration<InstructorProfile>
 {
-    public void Configure(EntityTypeBuilder<InstructorProfile> builder)
+    public void Configure(
+        EntityTypeBuilder<InstructorProfile> builder)
     {
         builder.ToTable("InstructorProfiles");
 
-        builder.HasKey(x => x.Id);
+        builder.HasKey(profile => profile.Id);
 
-        builder.Property(x => x.PersonnelCode).HasMaxLength(50).IsRequired();
+        builder.Property(profile => profile.Id)
+            .ValueGeneratedNever();
 
-        builder.HasIndex(x => x.PersonnelCode).IsUnique();
-        builder.HasIndex(x => x.UserProfileId).IsUnique();
+        builder.Property(profile => profile.PersonnelCode)
+            .HasMaxLength(50)
+            .IsUnicode(false)
+            .IsRequired();
 
-        builder.HasOne<UserProfile>()
-            .WithOne()
-            .HasForeignKey<InstructorProfile>(x => x.UserProfileId)
+        builder.Property(profile => profile.IsActive)
+            .HasDefaultValue(true)
+            .IsRequired();
+
+        builder.HasIndex(profile => profile.PersonnelCode)
+            .IsUnique()
+            .HasDatabaseName("UX_InstructorProfiles_PersonnelCode");
+
+        builder.HasOne<ApplicationUser>()
+            .WithOne(user => user.InstructorProfile)
+            .HasForeignKey<InstructorProfile>(profile => profile.Id)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
