@@ -1,49 +1,52 @@
-﻿namespace Application.Common.Models;
+﻿using Common.Enums;
 
-public enum UserProfileType
-{
-    Student = 1,
-    Instructor = 2,
-    EducationExpert = 3
-}
+namespace Application.Common.Models;
 
-public sealed record UserProfileListItemDto(
-    Guid UserProfileId,
-    Guid AuthUserId,
-    string? NationalCode,
+public sealed record UserIdentityData(
     string UserName,
-    string Email,
-    string FullName,
-    string ProfileCode,
-    string? MajorTitle,
-    bool IsActive);
-
-public sealed record UserProfileDetailsDto(
-    Guid UserProfileId,
-    Guid AuthUserId,
-    string? NationalCode,
-    string UserName,
-    string Email,
     string FirstName,
     string LastName,
-    bool IsActive,
-    UserProfileType ProfileType,
-    string ProfileCode,
-    Guid? MajorId,
-    Guid? FacultyId,
-    string? MajorTitle,
-    IReadOnlyCollection<string> Roles,
-    IReadOnlyCollection<Guid> FacultyIds,
-    IReadOnlyCollection<Guid> MajorIds);
-
-public sealed record UserByNationalCodeDto(
-    Guid UserProfileId,
-    Guid AuthUserId,
     string NationalCode,
-    string FullName,
+    string PhoneNumber,
+    string? Email,
+    string? LatinFirstName,
+    string? LatinLastName,
+    Gender Gender,
+    string? ProfileImagePath);
+
+public sealed record UserAccountDto(
+    Guid Id,
     string UserName,
-    string Email,
-    bool IsActive,
-    bool HasStudentProfile,
-    bool HasInstructorProfile,
-    bool HasEducationExpertProfile);
+    string FirstName,
+    string LastName,
+    string NationalCode,
+    string PhoneNumber,
+    string? Email,
+    string? LatinFirstName,
+    string? LatinLastName,
+    Gender Gender,
+    string? ProfileImagePath,
+    bool IsActive);
+
+public sealed record IdentityOperationResult(
+    bool Succeeded,
+    Guid? UserId,
+    IReadOnlyCollection<string> Errors)
+{
+    public static IdentityOperationResult Success(Guid userId)
+    {
+        return new IdentityOperationResult(
+            true,
+            userId,
+            Array.Empty<string>());
+    }
+
+    public static IdentityOperationResult Failure(
+        params string[] errors)
+    {
+        return new IdentityOperationResult(
+            false,
+            null,
+            errors);
+    }
+}

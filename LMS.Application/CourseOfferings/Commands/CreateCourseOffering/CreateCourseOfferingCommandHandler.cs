@@ -79,7 +79,7 @@ public sealed class CreateCourseOfferingCommandHandler
 
         if (!isAdmin)
         {
-            if (!_currentUser.UserProfileId.HasValue)
+            if (!_currentUser.UserId.HasValue)
             {
                 return Result<Guid>.Forbidden(
                     "scope.user_profile_required",
@@ -88,7 +88,7 @@ public sealed class CreateCourseOfferingCommandHandler
 
             var hasScope =
                 await _scopeService.HasMajorAccessAsync(
-                    _currentUser.UserProfileId.Value,
+                    _currentUser.UserId.Value,
                     course.MajorId,
                     cancellationToken);
 

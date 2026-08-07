@@ -133,7 +133,7 @@ public sealed class IdentityService : IIdentityService
             return null;
         }
 
-        var userProfile = await _dbContext.UserProfiles
+        var userProfile = await _dbIUserAccountService
             .AsNoTracking()
             .Where(x => x.AuthUserId == user.Id)
             .Select(x => new
@@ -179,7 +179,7 @@ public sealed class IdentityService : IIdentityService
         return new SignInDataDto
         {
             AuthUserId = user.Id,
-            UserProfileId = userProfile?.Id,
+            UserId = userProfile?.Id,
             UserName = user.UserName ?? string.Empty,
             DisplayName = userProfile?.DisplayName,
             Roles = roles

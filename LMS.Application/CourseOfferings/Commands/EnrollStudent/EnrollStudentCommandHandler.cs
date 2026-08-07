@@ -64,7 +64,7 @@ public sealed class EnrollStudentCommandHandler
 
         if (!isAdmin)
         {
-            if (!_currentUser.UserProfileId.HasValue)
+            if (!_currentUser.UserId.HasValue)
             {
                 return Result.Forbidden(
                     "scope.user_profile_required",
@@ -73,7 +73,7 @@ public sealed class EnrollStudentCommandHandler
 
             var hasScope =
                 await _scopeService.HasMajorAccessAsync(
-                    _currentUser.UserProfileId.Value,
+                    _currentUser.UserId.Value,
                     offeringData.Course.MajorId,
                     cancellationToken);
 

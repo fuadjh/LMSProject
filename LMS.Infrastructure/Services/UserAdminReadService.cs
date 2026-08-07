@@ -26,7 +26,7 @@ public sealed class UserAdminReadService : IUserAdminReadService
         CancellationToken cancellationToken = default)
     {
         var query =
-            from profile in _dbContext.UserProfiles.AsNoTracking()
+            from profile in _dbIUserAccountService.AsNoTracking()
             join user in _dbContext.Users.AsNoTracking()
                 on profile.AuthUserId equals user.Id
             select new
@@ -64,14 +64,14 @@ public sealed class UserAdminReadService : IUserAdminReadService
     }
 
     public async Task<UserAccessDetailsDto?> GetUserAccessDetailsAsync(
-        Guid userProfileId,
+        Guid UserId,
         CancellationToken cancellationToken = default)
     {
         var data = await (
-                from profile in _dbContext.UserProfiles.AsNoTracking()
+                from profile in _dbIUserAccountService.AsNoTracking()
                 join user in _dbContext.Users.AsNoTracking()
                     on profile.AuthUserId equals user.Id
-                where profile.Id == userProfileId
+                where profile.Id == UserId
                 select new
                 {
                     profile.Id,
@@ -89,14 +89,14 @@ public sealed class UserAdminReadService : IUserAdminReadService
         var facultyIds = await _dbContext
             .Set<UserFacultyScope>()
             .AsNoTracking()
-            .Where(x => x.UserProfileId == userProfileId)
+            .Where(x => x.UserId == UserId)
             .Select(x => x.FacultyId)
             .ToListAsync(cancellationToken);
 
         var majorIds = await _dbContext
             .Set<UserMajorScope>()
             .AsNoTracking()
-            .Where(x => x.UserProfileId == userProfileId)
+            .Where(x => x.UserId == UserId)
             .Select(x => x.MajorId)
             .ToListAsync(cancellationToken);
 
@@ -110,8 +110,8 @@ public sealed class UserAdminReadService : IUserAdminReadService
             majorIds);
     }
 
-    public async Task<PagedResponse<UserProfileListItemDto>> GetUsersAsync(
-        UserProfileType profileType,
+    public async Task<PagedResponse<UserListItemDto>> GetUsersAsync(
+        UserRoleType roleType,
         string? search,
         int pageNumber,
         int pageSize,
@@ -122,7 +122,7 @@ public sealed class UserAdminReadService : IUserAdminReadService
         pageNumber = Math.Max(pageNumber, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var query = BuildProfileQuery(profileType);
+        var query = BuildProfileQuery(roleType);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -152,7 +152,7 @@ public sealed class UserAdminReadService : IUserAdminReadService
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(x => new UserProfileListItemDto(
-                x.UserProfileId,
+                x.UserId,
                 x.AuthUserId,
                 x.NationalCode,
                 x.UserName,
@@ -163,20 +163,20 @@ public sealed class UserAdminReadService : IUserAdminReadService
                 x.IsActive))
             .ToListAsync(cancellationToken);
 
-        return new PagedResponse<UserProfileListItemDto>(
+        return new PagedResponse<UserListItemDto>(
             items,
             totalCount);
     }
 
-    public async Task<UserProfileDetailsDto?>
-        GetUserProfileDetailsAsync(
-            Guid userProfileId,
-            UserProfileType profileType,
+    public async Task<UserDetailsDto?>
+        GetUserDetailsAsync(
+            Guid UserId,
+            UserRoleType roleType,
             CancellationToken cancellationToken = default)
     {
-        var data = await BuildProfileQuery(profileType)
+        var data = await BuildProfileQuery(roleType)
             .SingleOrDefaultAsync(
-                x => x.UserProfileId == userProfileId,
+                x => x.UserId == UserId,
                 cancellationToken);
 
         if (data is null)
@@ -187,19 +187,19 @@ public sealed class UserAdminReadService : IUserAdminReadService
         var facultyIds = await _dbContext
             .Set<UserFacultyScope>()
             .AsNoTracking()
-            .Where(x => x.UserProfileId == userProfileId)
+            .Where(x => x.UserId == UserId)
             .Select(x => x.FacultyId)
             .ToListAsync(cancellationToken);
 
         var majorIds = await _dbContext
             .Set<UserMajorScope>()
             .AsNoTracking()
-            .Where(x => x.UserProfileId == userProfileId)
+            .Where(x => x.UserId == UserId)
             .Select(x => x.MajorId)
             .ToListAsync(cancellationToken);
 
         return new UserProfileDetailsDto(
-            data.UserProfileId,
+            data.UserId,
             data.AuthUserId,
             data.NationalCode,
             data.UserName,
@@ -207,7 +207,7 @@ public sealed class UserAdminReadService : IUserAdminReadService
             data.FirstName,
             data.LastName,
             data.IsActive,
-            profileType,
+            roleType,
             data.ProfileCode,
             data.MajorId,
             data.FacultyId,
@@ -226,7 +226,7 @@ public sealed class UserAdminReadService : IUserAdminReadService
             UserProfile.NormalizeNationalCode(nationalCode);
 
         return await (
-                from profile in _dbContext.UserProfiles.AsNoTracking()
+                from profile in _dbIUserAccountService.AsNoTracking()
                 join user in _dbContext.Users.AsNoTracking()
                     on profile.AuthUserId equals user.Id
                 where profile.NationalCode == normalizedNationalCode
@@ -239,30 +239,30 @@ public sealed class UserAdminReadService : IUserAdminReadService
                     user.Email ?? string.Empty,
                     profile.IsActive && user.IsActive,
                     _dbContext.StudentProfiles.Any(
-                        x => x.UserProfileId == profile.Id),
+                        x => x.UserId == profile.Id),
                     _dbContext.InstructorProfiles.Any(
-                        x => x.UserProfileId == profile.Id),
-                    _dbContext.EducationExpertProfiles.Any(
-                        x => x.UserProfileId == profile.Id)))
+                        x => x.UserId == profile.Id),
+                    _dbcontext.ExpertProfiles.Any(
+                        x => x.UserId == profile.Id)))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
     private IQueryable<UserRow> BuildProfileQuery(
-    UserProfileType profileType)
+    UserRoleType roleType)
     {
-        return profileType switch
+        return roleType switch
         {
-            UserProfileType.Student =>
-                from profile in _dbContext.UserProfiles.AsNoTracking()
+            UserRoleType.Student =>
+                from profile in _dbIUserAccountService.AsNoTracking()
                 join user in _dbContext.Users.AsNoTracking()
                     on profile.AuthUserId equals user.Id
                 join student in _dbContext.StudentProfiles.AsNoTracking()
-                    on profile.Id equals student.UserProfileId
+                    on profile.Id equals student.UserId
                 join major in _dbContext.Majors.AsNoTracking()
                     on student.MajorId equals major.Id
                 select new UserRow
                 {
-                    UserProfileId = profile.Id,
+                    UserId = profile.Id,
                     AuthUserId = profile.AuthUserId,
                     NationalCode = profile.NationalCode,
                     UserName = user.UserName ?? string.Empty,
@@ -276,15 +276,15 @@ public sealed class UserAdminReadService : IUserAdminReadService
                     IsActive = profile.IsActive && user.IsActive
                 },
 
-            UserProfileType.Instructor =>
-                from profile in _dbContext.UserProfiles.AsNoTracking()
+            UserRoleType.Instructor =>
+                from profile in _dbIUserAccountService.AsNoTracking()
                 join user in _dbContext.Users.AsNoTracking()
                     on profile.AuthUserId equals user.Id
                 join instructor in _dbContext.InstructorProfiles.AsNoTracking()
-                    on profile.Id equals instructor.UserProfileId
+                    on profile.Id equals instructor.UserId
                 select new UserRow
                 {
-                    UserProfileId = profile.Id,
+                    UserId = profile.Id,
                     AuthUserId = profile.AuthUserId,
                     NationalCode = profile.NationalCode,
                     UserName = user.UserName ?? string.Empty,
@@ -298,15 +298,15 @@ public sealed class UserAdminReadService : IUserAdminReadService
                     IsActive = profile.IsActive && user.IsActive
                 },
 
-            UserProfileType.EducationExpert =>
-                from profile in _dbContext.UserProfiles.AsNoTracking()
+            UserRoleType.EducationExpert =>
+                from profile in _dbIUserAccountService.AsNoTracking()
                 join user in _dbContext.Users.AsNoTracking()
                     on profile.AuthUserId equals user.Id
-                join expert in _dbContext.EducationExpertProfiles.AsNoTracking()
-                    on profile.Id equals expert.UserProfileId
+                join expert in _dbcontext.ExpertProfiles.AsNoTracking()
+                    on profile.Id equals expert.UserId
                 select new UserRow
                 {
-                    UserProfileId = profile.Id,
+                    UserId = profile.Id,
                     AuthUserId = profile.AuthUserId,
                     NationalCode = profile.NationalCode,
                     UserName = user.UserName ?? string.Empty,
@@ -321,8 +321,8 @@ public sealed class UserAdminReadService : IUserAdminReadService
                 },
 
             _ => throw new ArgumentOutOfRangeException(
-                nameof(profileType),
-                profileType,
+                nameof(roleType),
+                roleType,
                 "نوع پروفایل پشتیبانی نمی‌شود.")
         };
     }
@@ -387,7 +387,7 @@ public sealed class UserAdminReadService : IUserAdminReadService
 
     private sealed class UserRow
     {
-        public Guid UserProfileId { get; init; }
+        public Guid UserId { get; init; }
 
         public Guid AuthUserId { get; init; }
 

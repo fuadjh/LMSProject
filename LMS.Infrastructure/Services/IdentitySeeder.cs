@@ -129,7 +129,7 @@ public static class IdentitySeeder
             if (!addRoleResult.Succeeded)
                 throw new InvalidOperationException(string.Join(" | ", addRoleResult.Errors.Select(x => x.Description)));
 
-            var profileExists = await dbContext.UserProfiles.AnyAsync(x => x.AuthUserId == adminUser.Id);
+            var profileExists = await dbIUserAccountService.AnyAsync(x => x.AuthUserId == adminUser.Id);
             if (!profileExists)
             {
                 var profile = UserProfile.Create(adminUser.Id, "System", "Admin");

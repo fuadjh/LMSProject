@@ -30,11 +30,11 @@ public sealed class UserAccessController : ControllerBase
         return result.ToActionResult(this);
     }
 
-    [HttpGet("profiles/{userProfileId:guid}")]
+    [HttpGet("profiles/{UserId:guid}")]
     [HasPermission(Permissions.Security.UsersRead)]
-    public async Task<IActionResult> GetAccessDetails(Guid userProfileId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetAccessDetails(Guid UserId, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetUserAccessDetailsQuery(userProfileId), cancellationToken);
+        var result = await _mediator.Send(new GetUserAccessDetailsQuery(UserId), cancellationToken);
         return result.ToActionResult(this);
     }
 
@@ -46,11 +46,11 @@ public sealed class UserAccessController : ControllerBase
         return result.ToActionResult(this);
     }
 
-    [HttpPut("profiles/{userProfileId:guid}/scopes")]
+    [HttpPut("profiles/{UserId:guid}/scopes")]
     [HasPermission(Permissions.Security.ScopesAssign)]
-    public async Task<IActionResult> SetScopes(Guid userProfileId, SetUserScopesRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> SetScopes(Guid UserId, SetUserScopesRequest request, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new SetUserScopesCommand(userProfileId, request.FacultyIds, request.MajorIds), cancellationToken);
+        var result = await _mediator.Send(new SetUserScopesCommand(UserId, request.FacultyIds, request.MajorIds), cancellationToken);
         return result.ToActionResult(this);
     }
 }

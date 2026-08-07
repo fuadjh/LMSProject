@@ -1,4 +1,5 @@
 using Application.Common.Models;
+using Common.Enums;
 
 namespace Application.Abstractions.Read;
 
@@ -9,11 +10,11 @@ public interface IUserAdminReadService
         CancellationToken cancellationToken = default);
 
     Task<UserAccessDetailsDto?> GetUserAccessDetailsAsync(
-        Guid userProfileId,
+        Guid userId,
         CancellationToken cancellationToken = default);
 
-    Task<PagedResponse<UserProfileListItemDto>> GetUsersAsync(
-        UserProfileType profileType,
+    Task<PagedResponse<UserListItemDto>> GetUsersAsync(
+        UserRoleType roleType,
         string? search,
         int pageNumber,
         int pageSize,
@@ -21,9 +22,9 @@ public interface IUserAdminReadService
         bool sortDescending,
         CancellationToken cancellationToken = default);
 
-    Task<UserProfileDetailsDto?> GetUserProfileDetailsAsync(
-        Guid userProfileId,
-        UserProfileType profileType,
+    Task<UserDetailsDto?> GetUserDetailsAsync(
+        Guid userId,
+        UserRoleType roleType,
         CancellationToken cancellationToken = default);
 
     Task<UserByNationalCodeDto?> GetUserByNationalCodeAsync(

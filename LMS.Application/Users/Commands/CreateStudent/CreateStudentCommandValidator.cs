@@ -1,4 +1,4 @@
-﻿using Domain.Entities.Users;
+﻿using Common.Validation;
 using FluentValidation;
 
 namespace Application.Users.Commands.CreateStudent;
@@ -8,46 +8,35 @@ public sealed class CreateStudentCommandValidator
 {
     public CreateStudentCommandValidator()
     {
-        RuleFor(x => x.NationalCode)
+        RuleFor(command => command.FirstName)
             .NotEmpty()
-            .WithMessage("کد ملی الزامی است.")
-            .Must(UserProfile.IsValidNationalCode)
+            .MaximumLength(100);
+
+        RuleFor(command => command.LastName)
+            .NotEmpty()
+            .MaximumLength(100);
+
+        RuleFor(command => command.NationalCode)
+            .Must(IranianIdentityNormalizer.IsValidNationalCode)
             .WithMessage("کد ملی معتبر نیست.");
 
-        RuleFor(x => x.UserName)
-            .MaximumLength(100)
-            .WithMessage("نام کاربری نمی‌تواند بیشتر از 100 کاراکتر باشد.");
+        RuleFor(command => command.PhoneNumber)
+            .Must(IranianIdentityNormalizer.IsValidMobile)
+            .WithMessage("شماره موبایل معتبر نیست.");
 
-        RuleFor(x => x.Email)
+        RuleFor(command => command.Email)
             .EmailAddress()
-            .When(x => !string.IsNullOrWhiteSpace(x.Email))
-            .WithMessage("فرمت ایمیل معتبر نیست.")
-            .MaximumLength(200)
-            .WithMessage("ایمیل نمی‌تواند بیشتر از 200 کاراکتر باشد.");
+            .When(command => !string.IsNullOrWhiteSpace(command.Email));
 
-        RuleFor(x => x.Password)
-            .MinimumLength(6)
-            .When(x => !string.IsNullOrWhiteSpace(x.Password))
-            .WithMessage("رمز عبور باید حداقل 6 کاراکتر باشد.")
-            .MaximumLength(200)
-            .WithMessage("رمز عبور نمی‌تواند بیشتر از 200 کاراکتر باشد.");
-
-        RuleFor(x => x.FirstName)
-            .MaximumLength(100)
-            .WithMessage("نام نمی‌تواند بیشتر از 100 کاراکتر باشد.");
-
-        RuleFor(x => x.LastName)
-            .MaximumLength(100)
-            .WithMessage("نام خانوادگی نمی‌تواند بیشتر از 100 کاراکتر باشد.");
-
-        RuleFor(x => x.StudentNumber)
+        RuleFor(command => command.StudentNumber)
             .NotEmpty()
-            .WithMessage("شماره دانشجویی الزامی است.")
-            .MaximumLength(50)
-            .WithMessage("شماره دانشجویی نمی‌تواند بیشتر از 50 کاراکتر باشد.");
+            .MaximumLength(50);
 
-        RuleFor(x => x.MajorId)
+        RuleFor(command => command.MajorId)
+            .NotEmpty();
+
+        RuleFor(command => command.Password)
             .NotEmpty()
-            .WithMessage("انتخاب رشته الزامی است.");
+            .MinimumLength(6);
     }
 }

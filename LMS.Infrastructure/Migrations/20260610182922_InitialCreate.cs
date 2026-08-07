@@ -409,15 +409,15 @@ namespace LMS.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserProfileId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     PersonnelCode = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_InstructorProfiles", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_InstructorProfiles_UserProfiles_UserProfileId",
-                        column: x => x.UserProfileId,
+                        name: "FK_InstructorProfiles_UserProfiles_UserId",
+                        column: x => x.UserId,
                         principalTable: "UserProfiles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -428,7 +428,7 @@ namespace LMS.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserProfileId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     StudentNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     MajorId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
@@ -436,8 +436,8 @@ namespace LMS.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_StudentProfiles", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_StudentProfiles_UserProfiles_UserProfileId",
-                        column: x => x.UserProfileId,
+                        name: "FK_StudentProfiles_UserProfiles_UserId",
+                        column: x => x.UserId,
                         principalTable: "UserProfiles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -448,15 +448,15 @@ namespace LMS.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserProfileId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     FacultyId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_UserFacultyScopes", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_UserFacultyScopes_UserProfiles_UserProfileId",
-                        column: x => x.UserProfileId,
+                        name: "FK_UserFacultyScopes_UserProfiles_UserId",
+                        column: x => x.UserId,
                         principalTable: "UserProfiles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -467,15 +467,15 @@ namespace LMS.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserProfileId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     MajorId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_UserMajorScopes", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_UserMajorScopes_UserProfiles_UserProfileId",
-                        column: x => x.UserProfileId,
+                        name: "FK_UserMajorScopes_UserProfiles_UserId",
+                        column: x => x.UserId,
                         principalTable: "UserProfiles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -575,9 +575,9 @@ namespace LMS.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_InstructorProfiles_UserProfileId",
+                name: "IX_InstructorProfiles_UserId",
                 table: "InstructorProfiles",
-                column: "UserProfileId",
+                column: "UserId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -611,9 +611,9 @@ namespace LMS.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_StudentProfiles_UserProfileId",
+                name: "IX_StudentProfiles_UserId",
                 table: "StudentProfiles",
-                column: "UserProfileId",
+                column: "UserId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -623,15 +623,15 @@ namespace LMS.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_UserFacultyScopes_UserProfileId_FacultyId",
+                name: "IX_UserFacultyScopes_UserId_FacultyId",
                 table: "UserFacultyScopes",
-                columns: new[] { "UserProfileId", "FacultyId" },
+                columns: new[] { "UserId", "FacultyId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_UserMajorScopes_UserProfileId_MajorId",
+                name: "IX_UserMajorScopes_UserId_MajorId",
                 table: "UserMajorScopes",
-                columns: new[] { "UserProfileId", "MajorId" },
+                columns: new[] { "UserId", "MajorId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(

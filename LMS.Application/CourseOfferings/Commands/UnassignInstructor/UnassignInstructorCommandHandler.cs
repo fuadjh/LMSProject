@@ -25,7 +25,7 @@ public sealed class UnassignInstructorCommandHandler : IRequestHandler<UnassignI
 
     public async Task<Result> Handle(UnassignInstructorCommand request, CancellationToken cancellationToken)
     {
-        if (!_currentUser.IsAuthenticated || !_currentUser.UserProfileId.HasValue)
+        if (!_currentUser.IsAuthenticated || !_currentUser.UserId.HasValue)
             return Result.Unauthorized("auth.required", "کاربر احراز هویت نشده است.");
 
         var data = await (
@@ -38,7 +38,7 @@ public sealed class UnassignInstructorCommandHandler : IRequestHandler<UnassignI
         if (data is null)
             return Result.NotFound("offering.not_found", "ارائه یافت نشد.");
 
-        var hasScope = await _scopeService.HasMajorAccessAsync(_currentUser.UserProfileId.Value, data.MajorId, cancellationToken);
+        var hasScope = await _scopeService.HasMajorAccessAsync(_currentUser.UserId.Value, data.MajorId, cancellationToken);
         if (!hasScope)
             return Result.Forbidden("scope.denied", "دسترسی به این رشته را ندارید.");
 

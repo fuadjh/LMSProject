@@ -6,17 +6,17 @@ using Domain.Entities.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
-namespace Application.Users.Commands.CreateStudent;
+namespace Application.Users.Commands.CreateExpert;
 
-public sealed class CreateStudentCommandHandler
-    : IRequestHandler<CreateStudentCommand, IdentityOperationResult>
+public sealed class CreateExpertCommandHandler
+    : IRequestHandler<CreateExpertCommand, IdentityOperationResult>
 {
-    private const string RoleName = "Student";
+    private const string RoleName = "EducationExpert";
 
     private readonly IApplicationDbContext _context;
     private readonly IUserAccountService _accounts;
 
-    public CreateStudentCommandHandler(
+    public CreateExpertCommandHandler(
         IApplicationDbContext context,
         IUserAccountService accounts)
     {
@@ -25,30 +25,12 @@ public sealed class CreateStudentCommandHandler
     }
 
     public async Task<IdentityOperationResult> Handle(
-        CreateStudentCommand request,
+        CreateExpertCommand request,
         CancellationToken cancellationToken)
     {
-        var studentNumber =
+        var userName =
             IranianIdentityNormalizer.NormalizeUserName(
-                request.StudentNumber);
-
-        if (await _context.StudentProfiles.AnyAsync(
-                profile => profile.StudentNumber == studentNumber,
-                cancellationToken))
-        {
-            return IdentityOperationResult.Failure(
-                "شماره دانشجویی قبلاً ثبت شده است.");
-        }
-
-        var majorExists = await _context.Majors.AnyAsync(
-            major => major.Id == request.MajorId,
-            cancellationToken);
-
-        if (!majorExists)
-        {
-            return IdentityOperationResult.Failure(
-                "رشته انتخاب‌شده وجود ندارد.");
-        }
+                request.UserName);
 
         var existingUser =
             await _accounts.FindByNationalCodeAsync(
@@ -70,17 +52,17 @@ public sealed class CreateStudentCommandHandler
             }
 
             if (await _accounts.UserNameExistsAsync(
-                    studentNumber,
+                    userName,
                     null,
                     cancellationToken))
             {
                 return IdentityOperationResult.Failure(
-                    "شماره دانشجویی به‌عنوان نام کاربری تکراری است.");
+                    "نام کاربری قبلاً ثبت شده است.");
             }
 
             var createResult = await _accounts.CreateAsync(
                 new UserIdentityData(
-                    studentNumber,
+                    userName,
                     request.FirstName,
                     request.LastName,
                     request.NationalCode,
@@ -105,12 +87,12 @@ public sealed class CreateStudentCommandHandler
         {
             userId = existingUser.Id;
 
-            if (await _context.StudentProfiles.AnyAsync(
+            if (await _context.ExpertProfiles.AnyAsync(
                     profile => profile.Id == userId,
                     cancellationToken))
             {
                 return IdentityOperationResult.Failure(
-                    "این کد ملی قبلاً دارای نقش دانشجو است.");
+                    "این کد ملی قبلاً دارای نقش کارشناس آموزش است.");
             }
         }
 
@@ -119,12 +101,10 @@ public sealed class CreateStudentCommandHandler
 
         try
         {
-            var profile = StudentProfile.Create(
-                userId,
-                studentNumber,
-                request.MajorId);
+            await _context.AddAsync(
+                ExpertProfile.Create(userId),
+                cancellationToken);
 
-            await _context.AddAsync(profile, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
 
             var roleResult = await _accounts.AddToRoleAsync(

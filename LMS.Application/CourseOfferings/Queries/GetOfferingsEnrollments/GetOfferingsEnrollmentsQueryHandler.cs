@@ -21,7 +21,7 @@ public sealed class GetOfferingsEnrollmentsQueryHandler : IRequestHandler<GetOff
         var data = await (
             from e in _dbContext.Enrollments
             join s in _dbContext.StudentProfiles on e.StudentProfileId equals s.Id
-            join p in _dbContext.UserProfiles on s.UserProfileId equals p.Id
+            join p in _dbIUserAccountService on s.UserId equals p.Id
             where e.CourseOfferingId == request.CourseOfferingId
             orderby p.FirstName, p.LastName
             select new EnrollmentListItemDto(

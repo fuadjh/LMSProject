@@ -20,11 +20,11 @@ public sealed class PublishExamCommandHandler : IRequestHandler<PublishExamComma
 
     public async Task<Result> Handle(PublishExamCommand request, CancellationToken cancellationToken)
     {
-        if (!_currentUser.IsAuthenticated || !_currentUser.UserProfileId.HasValue)
+        if (!_currentUser.IsAuthenticated || !_currentUser.UserId.HasValue)
             return Result.Unauthorized("auth.required", "کاربر احراز هویت نشده است.");
 
         var instructorProfileId = await _dbContext.InstructorProfiles
-            .Where(x => x.UserProfileId == _currentUser.UserProfileId.Value)
+            .Where(x => x.UserId == _currentUser.UserId.Value)
             .Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(cancellationToken);
 

@@ -22,11 +22,11 @@ public sealed class SubmitExamAttemptCommandHandler : IRequestHandler<SubmitExam
 
     public async Task<Result> Handle(SubmitExamAttemptCommand request, CancellationToken cancellationToken)
     {
-        if (!_currentUser.IsAuthenticated || !_currentUser.UserProfileId.HasValue)
+        if (!_currentUser.IsAuthenticated || !_currentUser.UserId.HasValue)
             return Result.Unauthorized("auth.required", "کاربر احراز هویت نشده است.");
 
         var studentProfileId = await _dbContext.StudentProfiles
-            .Where(x => x.UserProfileId == _currentUser.UserProfileId.Value)
+            .Where(x => x.UserId == _currentUser.UserId.Value)
             .Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(cancellationToken);
 

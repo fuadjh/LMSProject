@@ -785,7 +785,7 @@ namespace LMS.Infrastructure.Migrations
                     b.ToTable("LearningTemplateModules", (string)null);
                 });
 
-            modelBuilder.Entity("Domain.Entities.Users.EducationExpertProfile", b =>
+            modelBuilder.Entity("Domain.Entities.Users.ExpertProfile", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -796,7 +796,7 @@ namespace LMS.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<Guid>("UserProfileId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
@@ -804,10 +804,10 @@ namespace LMS.Infrastructure.Migrations
                     b.HasIndex("EmployeeCode")
                         .IsUnique();
 
-                    b.HasIndex("UserProfileId")
+                    b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("EducationExpertProfiles", (string)null);
+                    b.ToTable("ExpertProfiles", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.Users.InstructorProfile", b =>
@@ -821,7 +821,7 @@ namespace LMS.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<Guid>("UserProfileId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
@@ -829,7 +829,7 @@ namespace LMS.Infrastructure.Migrations
                     b.HasIndex("PersonnelCode")
                         .IsUnique();
 
-                    b.HasIndex("UserProfileId")
+                    b.HasIndex("UserId")
                         .IsUnique();
 
                     b.ToTable("InstructorProfiles", (string)null);
@@ -849,7 +849,7 @@ namespace LMS.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<Guid>("UserProfileId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
@@ -857,7 +857,7 @@ namespace LMS.Infrastructure.Migrations
                     b.HasIndex("StudentNumber")
                         .IsUnique();
 
-                    b.HasIndex("UserProfileId")
+                    b.HasIndex("UserId")
                         .IsUnique();
 
                     b.ToTable("StudentProfiles", (string)null);
@@ -872,12 +872,12 @@ namespace LMS.Infrastructure.Migrations
                     b.Property<Guid>("FacultyId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("UserProfileId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserProfileId", "FacultyId")
+                    b.HasIndex("UserId", "FacultyId")
                         .IsUnique();
 
                     b.ToTable("UserFacultyScopes", (string)null);
@@ -892,12 +892,12 @@ namespace LMS.Infrastructure.Migrations
                     b.Property<Guid>("MajorId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("UserProfileId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserProfileId", "MajorId")
+                    b.HasIndex("UserId", "MajorId")
                         .IsUnique();
 
                     b.ToTable("UserMajorScopes", (string)null);
@@ -1145,11 +1145,11 @@ namespace LMS.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Domain.Entities.Users.EducationExpertProfile", b =>
+            modelBuilder.Entity("Domain.Entities.Users.ExpertProfile", b =>
                 {
                     b.HasOne("Domain.Entities.Users.UserProfile", null)
                         .WithOne()
-                        .HasForeignKey("Domain.Entities.Users.EducationExpertProfile", "UserProfileId")
+                        .HasForeignKey("Domain.Entities.Users.ExpertProfile", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1158,7 +1158,7 @@ namespace LMS.Infrastructure.Migrations
                 {
                     b.HasOne("Domain.Entities.Users.UserProfile", null)
                         .WithOne()
-                        .HasForeignKey("Domain.Entities.Users.InstructorProfile", "UserProfileId")
+                        .HasForeignKey("Domain.Entities.Users.InstructorProfile", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1167,7 +1167,7 @@ namespace LMS.Infrastructure.Migrations
                 {
                     b.HasOne("Domain.Entities.Users.UserProfile", null)
                         .WithOne()
-                        .HasForeignKey("Domain.Entities.Users.StudentProfile", "UserProfileId")
+                        .HasForeignKey("Domain.Entities.Users.StudentProfile", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1176,7 +1176,7 @@ namespace LMS.Infrastructure.Migrations
                 {
                     b.HasOne("Domain.Entities.Users.UserProfile", null)
                         .WithMany("FacultyScopes")
-                        .HasForeignKey("UserProfileId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1185,7 +1185,7 @@ namespace LMS.Infrastructure.Migrations
                 {
                     b.HasOne("Domain.Entities.Users.UserProfile", null)
                         .WithMany("MajorScopes")
-                        .HasForeignKey("UserProfileId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

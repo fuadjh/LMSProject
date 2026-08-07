@@ -1,32 +1,33 @@
 ﻿using Application.Abstractions.Read;
 using Application.Common.Models;
 using Application.Common.Results;
+using Common.Enums;
 using MediatR;
 
 namespace Application.Users.Queries.GetUsers;
 
 public sealed record GetStudentsQuery
     : PagedQuery,
-      IRequest<Result<PagedResponse<UserProfileListItemDto>>>;
+      IRequest<Result<PagedResponse<UserListItemDto>>>;
 
 public sealed record GetInstructorsQuery
     : PagedQuery,
-      IRequest<Result<PagedResponse<UserProfileListItemDto>>>;
+      IRequest<Result<PagedResponse<UserListItemDto>>>;
 
 public sealed record GetEducationExpertsQuery
     : PagedQuery,
-      IRequest<Result<PagedResponse<UserProfileListItemDto>>>;
+      IRequest<Result<PagedResponse<UserListItemDto>>>;
 
 public sealed class UserListQueryHandler :
     IRequestHandler<
         GetStudentsQuery,
-        Result<PagedResponse<UserProfileListItemDto>>>,
+        Result<PagedResponse<UserListItemDto>>>,
     IRequestHandler<
         GetInstructorsQuery,
-        Result<PagedResponse<UserProfileListItemDto>>>,
+        Result<PagedResponse<UserListItemDto>>>,
     IRequestHandler<
         GetEducationExpertsQuery,
-        Result<PagedResponse<UserProfileListItemDto>>>
+        Result<PagedResponse<UserListItemDto>>>
 {
     private readonly IUserAdminReadService _readService;
 
@@ -36,45 +37,45 @@ public sealed class UserListQueryHandler :
         _readService = readService;
     }
 
-    public async Task<Result<PagedResponse<UserProfileListItemDto>>> Handle(
+    public async Task<Result<PagedResponse<UserListItemDto>>> Handle(
         GetStudentsQuery request,
         CancellationToken cancellationToken)
     {
         return await GetResultAsync(
-            UserProfileType.Student,
+            UserRoleType.Student,
             request,
             cancellationToken);
     }
 
-    public async Task<Result<PagedResponse<UserProfileListItemDto>>> Handle(
+    public async Task<Result<PagedResponse<UserListItemDto>>> Handle(
         GetInstructorsQuery request,
         CancellationToken cancellationToken)
     {
         return await GetResultAsync(
-            UserProfileType.Instructor,
+            UserRoleType.Instructor,
             request,
             cancellationToken);
     }
 
-    public async Task<Result<PagedResponse<UserProfileListItemDto>>> Handle(
+    public async Task<Result<PagedResponse<UserListItemDto>>> Handle(
         GetEducationExpertsQuery request,
         CancellationToken cancellationToken)
     {
         return await GetResultAsync(
-            UserProfileType.EducationExpert,
+            UserRoleType.Expert,
             request,
             cancellationToken);
     }
 
-    private async Task<Result<PagedResponse<UserProfileListItemDto>>>
+    private async Task<Result<PagedResponse<UserListItemDto>>>
         GetResultAsync(
-            UserProfileType profileType,
+            UserRoleType roleType,
             PagedQuery request,
             CancellationToken cancellationToken)
     {
         var response =
             await _readService.GetUsersAsync(
-                profileType,
+                roleType,
                 request.Search,
                 request.PageNumber,
                 request.PageSize,
@@ -82,7 +83,7 @@ public sealed class UserListQueryHandler :
                 request.SortDescending,
                 cancellationToken);
 
-        return Result<PagedResponse<UserProfileListItemDto>>
+        return Result<PagedResponse<UserListItemDto>>
             .Success(response);
     }
 }

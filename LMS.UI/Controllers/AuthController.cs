@@ -106,8 +106,8 @@ public sealed class AuthController : Controller
             new(ClaimTypes.Name, signInData.UserName)
         };
 
-        if (signInData.UserProfileId.HasValue)
-            claims.Add(new Claim(CustomClaimTypes.UserProfileId, signInData.UserProfileId.Value.ToString()));
+        if (signInData.UserId.HasValue)
+            claims.Add(new Claim(CustomClaimTypes.UserId, signInData.UserId.Value.ToString()));
 
         if (!string.IsNullOrWhiteSpace(signInData.DisplayName))
             claims.Add(new Claim(ClaimTypes.GivenName, signInData.DisplayName));

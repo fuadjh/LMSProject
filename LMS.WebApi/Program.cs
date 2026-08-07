@@ -1,4 +1,5 @@
 ﻿using Application.Abstractions.Auth;
+using Application.Abstractions.Identity;
 using Application.Abstractions.Learning;
 using Application.Abstractions.Persistence;
 using Application.Abstractions.Read;
@@ -107,11 +108,12 @@ builder.Services
         });
 
 builder.Services.AddAuthorization();
-
 builder.Services.AddSingleton<
     IAuthorizationPolicyProvider,
     PermissionPolicyProvider>();
-
+builder.Services.AddScoped<
+    IUserAccountService,
+    UserAccountService>();
 builder.Services.AddScoped<
     IAuthorizationHandler,
     PermissionAuthorizationHandler>();
@@ -134,6 +136,7 @@ builder.Services.AddScoped<IApplicationDbContext>(
 
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
+builder.Services.AddScoped<IUserAccountService, UserAccountService>();
 builder.Services.AddScoped<
     IRolePermissionService,
     RolePermissionService>();

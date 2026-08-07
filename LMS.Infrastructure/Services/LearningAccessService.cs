@@ -67,7 +67,7 @@ public sealed class LearningAccessService
         }
 
         if (IsInRole(RoleNames.EducationExpert) &&
-            _currentUser.UserProfileId.HasValue)
+            _currentUser.UserId.HasValue)
         {
             var majorId = await (
                 from offering in _dbContext.CourseOfferings
@@ -80,7 +80,7 @@ public sealed class LearningAccessService
 
             return majorId.HasValue &&
                    await _scopeService.HasMajorAccessAsync(
-                       _currentUser.UserProfileId.Value,
+                       _currentUser.UserId.Value,
                        majorId.Value,
                        cancellationToken);
         }
@@ -109,13 +109,13 @@ public sealed class LearningAccessService
     public async Task<Guid?> GetCurrentStudentProfileIdAsync(
         CancellationToken cancellationToken = default)
     {
-        if (!_currentUser.UserProfileId.HasValue)
+        if (!_currentUser.UserId.HasValue)
             return null;
 
         return await _dbContext.StudentProfiles
             .Where(x =>
-                x.UserProfileId ==
-                _currentUser.UserProfileId.Value)
+                x.UserId ==
+                _currentUser.UserId.Value)
             .Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(cancellationToken);
     }
@@ -123,13 +123,13 @@ public sealed class LearningAccessService
     public async Task<Guid?> GetCurrentInstructorProfileIdAsync(
         CancellationToken cancellationToken = default)
     {
-        if (!_currentUser.UserProfileId.HasValue)
+        if (!_currentUser.UserId.HasValue)
             return null;
 
         return await _dbContext.InstructorProfiles
             .Where(x =>
-                x.UserProfileId ==
-                _currentUser.UserProfileId.Value)
+                x.UserId ==
+                _currentUser.UserId.Value)
             .Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(cancellationToken);
     }

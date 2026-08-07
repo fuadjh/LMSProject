@@ -34,14 +34,14 @@ public sealed class UsersController : ControllerBase
         return result.ToActionResult(this);
     }
 
-    [HttpGet("{userProfileId:guid}/access")]
+    [HttpGet("{UserId:guid}/access")]
     [HasPermission(Permissions.Security.UsersRead)]
     public async Task<IActionResult> GetAccessDetails(
-        Guid userProfileId,
+        Guid UserId,
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(
-            new GetUserAccessDetailsQuery(userProfileId),
+            new GetUserAccessDetailsQuery(UserId),
             cancellationToken);
 
         return result.ToActionResult(this);
@@ -59,14 +59,14 @@ public sealed class UsersController : ControllerBase
         return result.ToActionResult(this);
     }
 
-    [HttpDelete("{userProfileId:guid}")]
+    [HttpDelete("{UserId:guid}")]
     [HasPermission(Permissions.Security.UsersDelete)]
     public async Task<IActionResult> Delete(
-        Guid userProfileId,
+        Guid UserId,
         CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(
-            new DeleteUserCommand(userProfileId),
+            new DeleteUserCommand(UserId),
             cancellationToken);
 
         return result.ToActionResult(this);

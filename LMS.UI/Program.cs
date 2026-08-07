@@ -91,7 +91,7 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddScoped<
     ApiCookieForwardingHandler>();
-builder.Services.AddScoped<UserManagementApiClient>();
+builder.Services.AddScoped<UserCreateApiClient>();
 builder.Services
     .AddHttpClient(
         "Api",

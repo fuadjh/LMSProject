@@ -19,6 +19,10 @@
 
 	<ItemGroup>
 	  <Folder Include="Semesters\Queries\GetSemestersPage\" />
+	  <Folder Include="Users\Commands\DeleteUser\" />
+	  <Folder Include="Users\Commands\SetUserActiveStatus\" />
+	  <Folder Include="Users\Commands\UpdateUserProfile\" />
+	  <Folder Include="Users\Queries\GetUserDetails\" />
 	</ItemGroup>
 
 </Project>

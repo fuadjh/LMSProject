@@ -23,8 +23,8 @@ public sealed class CurrentUser : ICurrentUser
             ? id
             : null;
 
-    public Guid? UserProfileId =>
-        Guid.TryParse(User?.FindFirstValue(CustomClaimTypes.UserProfileId), out var id)
+    public Guid? UserId =>
+        Guid.TryParse(User?.FindFirstValue(CustomClaimTypes.UserId), out var id)
             ? id
             : null;
 

@@ -20,7 +20,7 @@ public sealed class GetExamSubmissionDetailsQueryHandler : IRequestHandler<GetEx
         var header = await (
             from s in _dbContext.ExamSubmissions
             join st in _dbContext.StudentProfiles on s.StudentProfileId equals st.Id
-            join p in _dbContext.UserProfiles on st.UserProfileId equals p.Id
+            join p in _dbIUserAccountService on st.UserId equals p.Id
             where s.Id == request.SubmissionId
             select new
             {

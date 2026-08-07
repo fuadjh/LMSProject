@@ -26,7 +26,7 @@
                               Busy="_checkingNationalCode"
                               OnCheckNationalCode="CheckNationalCodeAsync" />
 
-        @if (_existingPerson?.HasEducationExpertProfile == true)
+        @if (_existingPerson?.HasExpertProfile == true)
         {
             <MudAlert Severity="Severity.Error" Class="mt-4">
                 این شخص قبلاً دارای پروفایل کارشناس آموزش است.
@@ -46,7 +46,7 @@
                    ButtonType="ButtonType.Submit"
                    Variant="Variant.Filled"
                    Color="Color.Primary"
-                   Disabled="_saving || _existingPerson?.HasEducationExpertProfile == true">
+                   Disabled="_saving || _existingPerson?.HasExpertProfile == true">
             @(_saving ? "در حال ثبت..." : "ثبت کارشناس آموزش")
         </MudButton>
     </EditForm>

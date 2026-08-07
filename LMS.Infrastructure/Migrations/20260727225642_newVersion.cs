@@ -58,19 +58,19 @@ namespace LMS.Infrastructure.Migrations
                 defaultValue: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
 
             migrationBuilder.CreateTable(
-                name: "EducationExpertProfiles",
+                name: "ExpertProfiles",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserProfileId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     EmployeeCode = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_EducationExpertProfiles", x => x.Id);
+                    table.PrimaryKey("PK_ExpertProfiles", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_EducationExpertProfiles_UserProfiles_UserProfileId",
-                        column: x => x.UserProfileId,
+                        name: "FK_ExpertProfiles_UserProfiles_UserId",
+                        column: x => x.UserId,
                         principalTable: "UserProfiles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -207,15 +207,15 @@ namespace LMS.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_EducationExpertProfiles_EmployeeCode",
-                table: "EducationExpertProfiles",
+                name: "IX_ExpertProfiles_EmployeeCode",
+                table: "ExpertProfiles",
                 column: "EmployeeCode",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_EducationExpertProfiles_UserProfileId",
-                table: "EducationExpertProfiles",
-                column: "UserProfileId",
+                name: "IX_ExpertProfiles_UserId",
+                table: "ExpertProfiles",
+                column: "UserId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -259,7 +259,7 @@ namespace LMS.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "EducationExpertProfiles");
+                name: "ExpertProfiles");
 
             migrationBuilder.DropTable(
                 name: "LearningItemProgresses");

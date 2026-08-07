@@ -25,7 +25,7 @@ public sealed class AssignInstructorCommandHandler : IRequestHandler<AssignInstr
 
     public async Task<Result> Handle(AssignInstructorCommand request, CancellationToken cancellationToken)
     {
-        if (!_currentUser.IsAuthenticated || !_currentUser.UserProfileId.HasValue)
+        if (!_currentUser.IsAuthenticated || !_currentUser.UserId.HasValue)
             return Result.Unauthorized("auth.required", "کاربر احراز هویت نشده است.");
 
         var offeringData = await (
@@ -45,7 +45,7 @@ public sealed class AssignInstructorCommandHandler : IRequestHandler<AssignInstr
             return Result.NotFound("instructor.not_found", "استاد یافت نشد.");
 
         var hasScope = await _scopeService.HasMajorAccessAsync(
-            _currentUser.UserProfileId.Value,
+            _currentUser.UserId.Value,
             offeringData.MajorId,
             cancellationToken);
 

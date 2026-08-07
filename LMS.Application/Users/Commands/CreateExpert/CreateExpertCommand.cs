@@ -2,9 +2,10 @@
 using Common.Enums;
 using MediatR;
 
-namespace Application.Users.Commands.CreateInstructor;
+namespace Application.Users.Commands.CreateExpert;
 
-public sealed record CreateInstructorCommand(
+public sealed record CreateExpertCommand(
+    string UserName,
     string FirstName,
     string LastName,
     string NationalCode,
@@ -14,6 +15,5 @@ public sealed record CreateInstructorCommand(
     string? LatinLastName,
     Gender Gender,
     string? ProfileImagePath,
-    string PersonnelCode,
     string Password)
     : IRequest<IdentityOperationResult>;

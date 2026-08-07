@@ -1,0 +1,296 @@
+﻿@page "/admin/users/create"
+@using WebUi.Components.Pages.Admin.Users
+@inject UserCreateApiClient ApiClient
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>ایجاد کاربر</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6">
+    <MudPaper Elevation="1" Class="pa-6">
+
+        <MudText Typo="Typo.h5" Class="mb-5">
+            ایجاد کاربر
+        </MudText>
+
+        <MudForm @ref="_form"
+                 Model="_model"
+                 ValidationDelay="0">
+
+            <MudGrid>
+
+                <MudItem xs="12" md="4">
+                    <MudSelect T="UserCreateType"
+                               Label="نوع کاربر"
+                               Variant="Variant.Outlined"
+                               @bind-Value="_model.Type">
+                        <MudSelectItem Value="UserCreateType.Student">
+                            دانشجو
+                        </MudSelectItem>
+                        <MudSelectItem Value="UserCreateType.Instructor">
+                            استاد
+                        </MudSelectItem>
+                        <MudSelectItem Value="UserCreateType.Expert">
+                            کارشناس آموزش
+                        </MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="نام"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="نام الزامی است."
+                                  @bind-Value="_model.FirstName" />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="نام خانوادگی"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="نام خانوادگی الزامی است."
+                                  @bind-Value="_model.LastName" />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="کد ملی"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="کد ملی الزامی است."
+                                  MaxLength="10"
+                                  @bind-Value="_model.NationalCode" />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="شماره موبایل"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="شماره موبایل الزامی است."
+                                  MaxLength="13"
+                                  @bind-Value="_model.PhoneNumber" />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="ایمیل"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Email"
+                                  @bind-Value="_model.Email" />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="نام لاتین"
+                                  Variant="Variant.Outlined"
+                                  @bind-Value="_model.LatinFirstName" />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="نام خانوادگی لاتین"
+                                  Variant="Variant.Outlined"
+                                  @bind-Value="_model.LatinLastName" />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudSelect T="GenderVm"
+                               Label="جنسیت"
+                               Variant="Variant.Outlined"
+                               @bind-Value="_model.Gender">
+                        <MudSelectItem Value="GenderVm.Male">
+                            مرد
+                        </MudSelectItem>
+                        <MudSelectItem Value="GenderVm.Female">
+                            زن
+                        </MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="مسیر تصویر پروفایل"
+                                  Variant="Variant.Outlined"
+                                  @bind-Value="_model.ProfileImagePath" />
+                </MudItem>
+
+                @if (_model.Type == UserCreateType.Student)
+                {
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string"
+                                      Label="شماره دانشجویی"
+                                      Variant="Variant.Outlined"
+                                      Required="true"
+                                      RequiredError="شماره دانشجویی الزامی است."
+                                      @bind-Value="_model.StudentNumber" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="Guid?"
+                                      Label="شناسه رشته"
+                                      Variant="Variant.Outlined"
+                                      Required="true"
+                                      RequiredError="رشته الزامی است."
+                                      @bind-Value="_model.MajorId" />
+                    </MudItem>
+                }
+                else if (_model.Type == UserCreateType.Instructor)
+                {
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string"
+                                      Label="کد پرسنلی"
+                                      Variant="Variant.Outlined"
+                                      Required="true"
+                                      RequiredError="کد پرسنلی الزامی است."
+                                      @bind-Value="_model.PersonnelCode" />
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12" md="4">
+                        <MudTextField T="string"
+                                      Label="نام کاربری / کد کارمندی"
+                                      Variant="Variant.Outlined"
+                                      Required="true"
+                                      RequiredError="نام کاربری الزامی است."
+                                      @bind-Value="_model.UserName" />
+                    </MudItem>
+                }
+
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="رمز عبور"
+                                  Variant="Variant.Outlined"
+                                  InputType="@(_showPassword
+                                                                        ? InputType.Text
+                                                                        : InputType.Password)"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(_showPassword
+                                                                        ? Icons.Material.Filled.VisibilityOff
+                                                                    : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="TogglePassword"
+                                  Required="true"
+                                  RequiredError="رمز عبور الزامی است."
+                                  @bind-Value="_model.Password" />
+                </MudItem>
+
+            </MudGrid>
+
+            <MudStack Row="true"
+                      Justify="Justify.FlexEnd"
+                      Class="mt-6">
+
+                <MudButton Variant="Variant.Text"
+                           Disabled="_saving"
+                           OnClick="Cancel">
+                    انصراف
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="_saving"
+                           OnClick="SaveAsync">
+                    @if (_saving)
+                    {
+                        <MudProgressCircular Size="Size.Small"
+                                             Indeterminate="true"
+                                             Class="me-2" />
+                    }
+                    ذخیره
+                </MudButton>
+
+            </MudStack>
+
+        </MudForm>
+
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private MudForm? _form;
+    private readonly CreateUserModel _model = new();
+    private bool _saving;
+    private bool _showPassword;
+
+    private void TogglePassword()
+    {
+        _showPassword = !_showPassword;
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/admin/users");
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_form is null)
+        {
+            return;
+        }
+
+        await _form.Validate();
+
+        if (!_form.IsValid)
+        {
+            return;
+        }
+
+        if (_model.Type == UserCreateType.Student &&
+            (!_model.MajorId.HasValue ||
+             _model.MajorId.Value == Guid.Empty))
+        {
+            Snackbar.Add(
+                "رشته تحصیلی الزامی است.",
+                Severity.Error);
+
+            return;
+        }
+
+        _saving = true;
+
+        try
+        {
+            var result = await ApiClient.CreateAsync(_model);
+
+            if (!result.Succeeded)
+            {
+                Snackbar.Add(
+                    result.Error ?? "ایجاد کاربر ناموفق بود.",
+                    Severity.Error);
+
+                return;
+            }
+
+            Snackbar.Add(
+                "کاربر با موفقیت ایجاد شد.",
+                Severity.Success);
+
+            Navigation.NavigateTo(GetListRoute());
+        }
+        catch (Exception exception)
+        {
+            Snackbar.Add(
+                exception.Message,
+                Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private string GetListRoute()
+    {
+        return _model.Type switch
+        {
+            UserCreateType.Student => "/admin/students",
+            UserCreateType.Instructor => "/admin/instructors",
+            UserCreateType.Expert => "/admin/education-experts",
+            _ => "/admin/users"
+        };
+    }
+}

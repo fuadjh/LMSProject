@@ -2,6 +2,6 @@ namespace Application.Abstractions.Security;
 
 public interface IAccessScopeService
 {
-    Task<bool> HasFacultyAccessAsync(Guid userProfileId, Guid facultyId, CancellationToken cancellationToken = default);
-    Task<bool> HasMajorAccessAsync(Guid userProfileId, Guid majorId, CancellationToken cancellationToken = default);
+    Task<bool> HasFacultyAccessAsync(Guid UserId, Guid facultyId, CancellationToken cancellationToken = default);
+    Task<bool> HasMajorAccessAsync(Guid UserId, Guid majorId, CancellationToken cancellationToken = default);
 }

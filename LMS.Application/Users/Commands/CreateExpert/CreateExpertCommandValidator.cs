@@ -1,13 +1,17 @@
 ﻿using Common.Validation;
 using FluentValidation;
 
-namespace Application.Users.Commands.CreateInstructor;
+namespace Application.Users.Commands.CreateExpert;
 
-public sealed class CreateInstructorCommandValidator
-    : AbstractValidator<CreateInstructorCommand>
+public sealed class CreateExpertCommandValidator
+    : AbstractValidator<CreateExpertCommand>
 {
-    public CreateInstructorCommandValidator()
+    public CreateExpertCommandValidator()
     {
+        RuleFor(command => command.UserName)
+            .NotEmpty()
+            .MaximumLength(50);
+
         RuleFor(command => command.FirstName)
             .NotEmpty()
             .MaximumLength(100);
@@ -27,10 +31,6 @@ public sealed class CreateInstructorCommandValidator
         RuleFor(command => command.Email)
             .EmailAddress()
             .When(command => !string.IsNullOrWhiteSpace(command.Email));
-
-        RuleFor(command => command.PersonnelCode)
-            .NotEmpty()
-            .MaximumLength(50);
 
         RuleFor(command => command.Password)
             .NotEmpty()

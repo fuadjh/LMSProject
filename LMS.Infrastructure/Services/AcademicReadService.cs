@@ -72,8 +72,8 @@ public sealed class AcademicReadService : IAcademicReadService
 
             from instructor in instructorJoin.DefaultIfEmpty()
 
-            join profile in _dbContext.UserProfiles.AsNoTracking()
-                on instructor.UserProfileId equals profile.Id
+            join profile in _dbIUserAccountService.AsNoTracking()
+                on instructor.UserId equals profile.Id
                 into profileJoin
 
             from profile in profileJoin.DefaultIfEmpty()
@@ -130,8 +130,8 @@ public sealed class AcademicReadService : IAcademicReadService
 
                 from instructor in instructorJoin.DefaultIfEmpty()
 
-                join profile in _dbContext.UserProfiles.AsNoTracking()
-                    on instructor.UserProfileId equals profile.Id
+                join profile in _dbIUserAccountService.AsNoTracking()
+                    on instructor.UserId equals profile.Id
                     into profileJoin
 
                 from profile in profileJoin.DefaultIfEmpty()
@@ -167,8 +167,8 @@ public sealed class AcademicReadService : IAcademicReadService
     {
         var query =
             from instructor in _dbContext.InstructorProfiles.AsNoTracking()
-            join profile in _dbContext.UserProfiles.AsNoTracking()
-                on instructor.UserProfileId equals profile.Id
+            join profile in _dbIUserAccountService.AsNoTracking()
+                on instructor.UserId equals profile.Id
             select new
             {
                 Instructor = instructor,
@@ -204,8 +204,8 @@ public sealed class AcademicReadService : IAcademicReadService
     {
         var query =
             from student in _dbContext.StudentProfiles.AsNoTracking()
-            join profile in _dbContext.UserProfiles.AsNoTracking()
-                on student.UserProfileId equals profile.Id
+            join profile in _dbIUserAccountService.AsNoTracking()
+                on student.UserId equals profile.Id
             select new
             {
                 Student = student,

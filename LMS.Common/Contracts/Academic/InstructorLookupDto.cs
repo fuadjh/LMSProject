@@ -2,6 +2,6 @@ namespace Common.Contracts.Academic;
 
 public sealed record InstructorLookupDto(
     Guid InstructorProfileId,
-    Guid UserProfileId,
+    Guid UserId,
     string FullName,
     string PersonnelCode);

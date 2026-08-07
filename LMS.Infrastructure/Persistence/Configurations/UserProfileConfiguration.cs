@@ -27,12 +27,12 @@ public sealed class UserProfileConfiguration : IEntityTypeConfiguration<UserProf
 
         builder.HasMany(x => x.FacultyScopes)
             .WithOne()
-            .HasForeignKey(x => x.UserProfileId)
+            .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.MajorScopes)
             .WithOne()
-            .HasForeignKey(x => x.UserProfileId)
+            .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Metadata.FindNavigation(nameof(UserProfile.FacultyScopes))!

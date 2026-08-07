@@ -60,7 +60,7 @@ public sealed class UpdateCourseCommandHandler
 
         if (!isAdmin)
         {
-            if (!_currentUser.UserProfileId.HasValue)
+            if (!_currentUser.UserId.HasValue)
             {
                 return Result.Forbidden(
                     "profile.required",
@@ -69,14 +69,14 @@ public sealed class UpdateCourseCommandHandler
 
             var currentAccess =
                 await _scopeService.HasMajorAccessAsync(
-                    _currentUser.UserProfileId.Value,
+                    _currentUser.UserId.Value,
                     course.MajorId,
                     cancellationToken);
 
             var targetAccess =
                 course.MajorId == request.MajorId ||
                 await _scopeService.HasMajorAccessAsync(
-                    _currentUser.UserProfileId.Value,
+                    _currentUser.UserId.Value,
                     request.MajorId,
                     cancellationToken);
 

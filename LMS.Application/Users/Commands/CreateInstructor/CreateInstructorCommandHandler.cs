@@ -1,7 +1,7 @@
-﻿using Application.Abstractions.Auth;
+﻿using Application.Abstractions.Identity;
 using Application.Abstractions.Persistence;
-using Application.Common.Results;
-using Common.Security;
+using Application.Common.Models;
+using Common.Validation;
 using Domain.Entities.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -9,221 +9,137 @@ using Microsoft.EntityFrameworkCore;
 namespace Application.Users.Commands.CreateInstructor;
 
 public sealed class CreateInstructorCommandHandler
-    : IRequestHandler<CreateInstructorCommand, Result<Guid>>
+    : IRequestHandler<CreateInstructorCommand, IdentityOperationResult>
 {
-    private readonly IIdentityService _identityService;
-    private readonly IApplicationDbContext _dbContext;
+    private const string RoleName = "Instructor";
+
+    private readonly IApplicationDbContext _context;
+    private readonly IUserAccountService _accounts;
 
     public CreateInstructorCommandHandler(
-        IIdentityService identityService,
-        IApplicationDbContext dbContext)
+        IApplicationDbContext context,
+        IUserAccountService accounts)
     {
-        _identityService = identityService;
-        _dbContext = dbContext;
+        _context = context;
+        _accounts = accounts;
     }
 
-    public async Task<Result<Guid>> Handle(
+    public async Task<IdentityOperationResult> Handle(
         CreateInstructorCommand request,
         CancellationToken cancellationToken)
     {
-        var nationalCode =
-            UserProfile.NormalizeNationalCode(request.NationalCode);
+        var personnelCode =
+            IranianIdentityNormalizer.NormalizeUserName(
+                request.PersonnelCode);
 
-        if (!UserProfile.IsValidNationalCode(nationalCode))
+        if (await _context.InstructorProfiles.AnyAsync(
+                profile => profile.PersonnelCode == personnelCode,
+                cancellationToken))
         {
-            return Result<Guid>.Invalid(
-                Error.Validation(
-                    "nationalCode",
-                    "کد ملی معتبر نیست."));
+            return IdentityOperationResult.Failure(
+                "کد پرسنلی قبلاً ثبت شده است.");
         }
 
-        var normalizedPersonnelCode =
-            request.PersonnelCode.Trim();
-
-        var personnelCodeExists =
-            await _dbContext.InstructorProfiles.AnyAsync(
-                x => x.PersonnelCode == normalizedPersonnelCode,
+        var existingUser =
+            await _accounts.FindByNationalCodeAsync(
+                request.NationalCode,
                 cancellationToken);
 
-        if (personnelCodeExists)
+        Guid userId;
+        var createdNewUser = false;
+
+        if (existingUser is null)
         {
-            return Result<Guid>.Conflict(
-                "instructor.personnel_code_exists",
-                "کد پرسنلی تکراری است.");
-        }
-
-        var existingUserProfile =
-            await _dbContext.UserProfiles
-                .SingleOrDefaultAsync(
-                    x => x.NationalCode == nationalCode,
-                    cancellationToken);
-
-        var existingInstructorProfile =
-            existingUserProfile is null
-                ? null
-                : await _dbContext.InstructorProfiles
-                    .SingleOrDefaultAsync(
-                        x => x.UserProfileId == existingUserProfile.Id,
-                        cancellationToken);
-
-        if (existingInstructorProfile is not null)
-        {
-            return Result<Guid>.Conflict(
-                "instructor.profile_exists",
-                "این شخص قبلاً پروفایل استادی دارد.");
-        }
-
-        if (existingUserProfile is null)
-        {
-            var credentialsResult =
-                ValidateNewUserCredentials(request);
-
-            if (!credentialsResult.IsSuccess)
-                return Result<Guid>.Invalid(
-                    credentialsResult.Errors);
-
-            if (await _identityService.ExistsByUserNameAsync(
-                    request.UserName,
+            if (await _accounts.PhoneNumberExistsAsync(
+                    request.PhoneNumber,
+                    null,
                     cancellationToken))
             {
-                return Result<Guid>.Conflict(
-                    "user.username_exists",
-                    "نام کاربری تکراری است.");
+                return IdentityOperationResult.Failure(
+                    "شماره موبایل برای کاربر دیگری ثبت شده است.");
             }
 
-            if (await _identityService.ExistsByEmailAsync(
-                    request.Email,
+            if (await _accounts.UserNameExistsAsync(
+                    personnelCode,
+                    null,
                     cancellationToken))
             {
-                return Result<Guid>.Conflict(
-                    "user.email_exists",
-                    "ایمیل تکراری است.");
+                return IdentityOperationResult.Failure(
+                    "کد پرسنلی به‌عنوان نام کاربری تکراری است.");
+            }
+
+            var createResult = await _accounts.CreateAsync(
+                new UserIdentityData(
+                    personnelCode,
+                    request.FirstName,
+                    request.LastName,
+                    request.NationalCode,
+                    request.PhoneNumber,
+                    request.Email,
+                    request.LatinFirstName,
+                    request.LatinLastName,
+                    request.Gender,
+                    request.ProfileImagePath),
+                request.Password,
+                cancellationToken);
+
+            if (!createResult.Succeeded || !createResult.UserId.HasValue)
+            {
+                return createResult;
+            }
+
+            userId = createResult.UserId.Value;
+            createdNewUser = true;
+        }
+        else
+        {
+            userId = existingUser.Id;
+
+            if (await _context.InstructorProfiles.AnyAsync(
+                    profile => profile.Id == userId,
+                    cancellationToken))
+            {
+                return IdentityOperationResult.Failure(
+                    "این کد ملی قبلاً دارای نقش استاد است.");
             }
         }
 
         await using var transaction =
-            await _dbContext.BeginTransactionAsync(
-                cancellationToken);
+            await _context.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            UserProfile userProfile;
+            await _context.AddAsync(
+                InstructorProfile.Create(userId, personnelCode),
+                cancellationToken);
 
-            if (existingUserProfile is not null)
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var roleResult = await _accounts.AddToRoleAsync(
+                userId,
+                RoleName,
+                cancellationToken);
+
+            if (!roleResult.Succeeded)
             {
-                userProfile = existingUserProfile;
-
-                await _identityService.AddUserToRoleAsync(
-                    userProfile.AuthUserId,
-                    RoleNames.Instructor,
-                    cancellationToken);
-            }
-            else
-            {
-                var authUserId =
-                    await _identityService.CreateUserAsync(
-                        request.UserName.Trim(),
-                        request.Email.Trim(),
-                        request.Password,
-                        [RoleNames.Instructor],
-                        cancellationToken);
-
-                userProfile = UserProfile.Create(
-                    authUserId,
-                    request.FirstName,
-                    request.LastName,
-                    nationalCode);
-
-                await _dbContext.AddAsync(
-                    userProfile,
-                    cancellationToken);
+                throw new InvalidOperationException(
+                    string.Join("، ", roleResult.Errors));
             }
 
-            var instructorProfile =
-                InstructorProfile.Create(
-                    userProfile.Id,
-                    normalizedPersonnelCode);
+            await transaction.CommitAsync(cancellationToken);
 
-            await _dbContext.AddAsync(
-                instructorProfile,
-                cancellationToken);
-
-            await _dbContext.SaveChangesAsync(
-                cancellationToken);
-
-            await transaction.CommitAsync(
-                cancellationToken);
-
-            return Result<Guid>.Success(
-                userProfile.Id);
+            return IdentityOperationResult.Success(userId);
         }
-        catch (InvalidOperationException ex)
+        catch (Exception exception)
         {
-            await transaction.RollbackAsync(
-                cancellationToken);
+            await transaction.RollbackAsync(cancellationToken);
 
-            return Result<Guid>.Conflict(
-                "instructor.create_conflict",
-                ex.Message);
+            if (createdNewUser)
+            {
+                await _accounts.DeleteAsync(userId, cancellationToken);
+            }
+
+            return IdentityOperationResult.Failure(exception.Message);
         }
-        catch (Exception ex)
-        {
-            await transaction.RollbackAsync(
-                cancellationToken);
-
-            return Result<Guid>.Failure(
-                "instructor.create_failed",
-                ex.Message);
-        }
-    }
-
-    private static Result ValidateNewUserCredentials(
-        CreateInstructorCommand request)
-    {
-        var errors = new List<Error>();
-
-        if (string.IsNullOrWhiteSpace(request.UserName))
-        {
-            errors.Add(
-                Error.Validation(
-                    "userName",
-                    "نام کاربری برای شخص جدید الزامی است."));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Email))
-        {
-            errors.Add(
-                Error.Validation(
-                    "email",
-                    "ایمیل برای شخص جدید الزامی است."));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Password))
-        {
-            errors.Add(
-                Error.Validation(
-                    "password",
-                    "رمز عبور برای شخص جدید الزامی است."));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.FirstName))
-        {
-            errors.Add(
-                Error.Validation(
-                    "firstName",
-                    "نام برای شخص جدید الزامی است."));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.LastName))
-        {
-            errors.Add(
-                Error.Validation(
-                    "lastName",
-                    "نام خانوادگی برای شخص جدید الزامی است."));
-        }
-
-        return errors.Count == 0
-            ? Result.Success()
-            : Result.Invalid(errors);
     }
 }

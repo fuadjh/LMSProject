@@ -15,16 +15,16 @@ public sealed class AccessScopeService : IAccessScopeService
         _dbContext = dbContext;
     }
 
-    public async Task<bool> HasFacultyAccessAsync(Guid userProfileId, Guid facultyId, CancellationToken cancellationToken = default)
+    public async Task<bool> HasFacultyAccessAsync(Guid UserId, Guid facultyId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Set<UserFacultyScope>()
-            .AnyAsync(x => x.UserProfileId == userProfileId && x.FacultyId == facultyId, cancellationToken);
+            .AnyAsync(x => x.UserId == UserId && x.FacultyId == facultyId, cancellationToken);
     }
 
-    public async Task<bool> HasMajorAccessAsync(Guid userProfileId, Guid majorId, CancellationToken cancellationToken = default)
+    public async Task<bool> HasMajorAccessAsync(Guid UserId, Guid majorId, CancellationToken cancellationToken = default)
     {
         var directMajorAccess = await _dbContext.Set<UserMajorScope>()
-            .AnyAsync(x => x.UserProfileId == userProfileId && x.MajorId == majorId, cancellationToken);
+            .AnyAsync(x => x.UserId == UserId && x.MajorId == majorId, cancellationToken);
 
         if (directMajorAccess)
             return true;
@@ -37,6 +37,6 @@ public sealed class AccessScopeService : IAccessScopeService
         if (!facultyId.HasValue)
             return false;
 
-        return await HasFacultyAccessAsync(userProfileId, facultyId.Value, cancellationToken);
+        return await HasFacultyAccessAsync(UserId, facultyId.Value, cancellationToken);
     }
 }
