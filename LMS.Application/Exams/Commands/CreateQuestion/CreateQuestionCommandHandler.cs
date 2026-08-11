@@ -26,7 +26,7 @@ public sealed class CreateQuestionCommandHandler : IRequestHandler<CreateQuestio
             return Result<Guid>.Unauthorized("auth.required", "کاربر احراز هویت نشده است.");
 
         var instructorProfileId = await _dbContext.InstructorProfiles
-            .Where(x => x.UserId == _currentUser.UserId.Value)
+            .Where(x => x.Id == _currentUser.UserId.Value)
             .Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(cancellationToken);
 

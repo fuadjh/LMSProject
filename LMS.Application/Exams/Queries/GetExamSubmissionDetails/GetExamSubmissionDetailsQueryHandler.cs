@@ -1,4 +1,5 @@
-﻿using Application.Abstractions.Persistence;
+﻿using Application.Abstractions.Identity;
+using Application.Abstractions.Persistence;
 using Application.Common.Results;
 using LMS.Application.Exams;
 using MediatR;
@@ -6,83 +7,134 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Application.Exams.Queries.GetExamSubmissionDetails;
 
-public sealed class GetExamSubmissionDetailsQueryHandler : IRequestHandler<GetExamSubmissionDetailsQuery, Result<ExamSubmissionDetailsDto>>
+public sealed class GetExamSubmissionDetailsQueryHandler
+    : IRequestHandler<
+        GetExamSubmissionDetailsQuery,
+        Result<ExamSubmissionDetailsDto>>
 {
     private readonly IApplicationDbContext _dbContext;
+    private readonly IUserAccountService _userAccountService;
 
-    public GetExamSubmissionDetailsQueryHandler(IApplicationDbContext dbContext)
+    public GetExamSubmissionDetailsQueryHandler(
+        IApplicationDbContext dbContext,
+        IUserAccountService userAccountService)
     {
         _dbContext = dbContext;
+        _userAccountService = userAccountService;
     }
 
-    public async Task<Result<ExamSubmissionDetailsDto>> Handle(GetExamSubmissionDetailsQuery request, CancellationToken cancellationToken)
+    public async Task<Result<ExamSubmissionDetailsDto>> Handle(
+        GetExamSubmissionDetailsQuery request,
+        CancellationToken cancellationToken)
     {
         var header = await (
-            from s in _dbContext.ExamSubmissions
-            join st in _dbContext.StudentProfiles on s.StudentProfileId equals st.Id
-            join p in _dbIUserAccountService on st.UserId equals p.Id
-            where s.Id == request.SubmissionId
+            from submission in _dbContext.ExamSubmissions
+            join students in _dbContext.StudentProfiles
+                on submission.StudentProfileId equals students.Id
+            where submission.Id == request.SubmissionId
             select new
             {
-                s.Id,
-                StudentFullName = p.FirstName + " " + p.LastName,
-                st.StudentNumber,
-                s.AttemptNumber,
-                s.StartedAtUtc,
-                s.SubmittedAtUtc,
-                s.TotalScore
+                SubmissionId = submission.Id,
+                StudentUserId = students.Id,
+                students.StudentNumber,
+                submission.AttemptNumber,
+                submission.StartedAtUtc,
+                submission.SubmittedAtUtc,
+                submission.TotalScore
             })
             .SingleOrDefaultAsync(cancellationToken);
 
         if (header is null)
-            return Result<ExamSubmissionDetailsDto>.NotFound("submission.not_found", "Submission یافت نشد.");
+        {
+            return Result<ExamSubmissionDetailsDto>.NotFound(
+                "submission.not_found",
+                "ارسال آزمون یافت نشد.");
+        }
+
+        var student = await _userAccountService.FindByIdAsync(
+            header.StudentUserId,
+            cancellationToken);
+
+        if (student is null)
+        {
+            return Result<ExamSubmissionDetailsDto>.NotFound(
+                "submission.student_not_found",
+                "کاربر دانشجوی این ارسال آزمون یافت نشد.");
+        }
 
         var answers = await (
-            from a in _dbContext.ExamAnswers
-            join q in _dbContext.Questions on a.QuestionId equals q.Id
-            join eq in _dbContext.ExamQuestions on q.Id equals eq.QuestionId
-            where a.ExamSubmissionId == request.SubmissionId
+            from answer in _dbContext.ExamAnswers
+            join question in _dbContext.Questions
+                on answer.QuestionId equals question.Id
+            join examQuestion in _dbContext.ExamQuestions
+                on question.Id equals examQuestion.QuestionId
+            where answer.ExamSubmissionId == request.SubmissionId
             select new
             {
-                a.Id,
-                a.QuestionId,
-                q.Title,
-                q.Type,
-                a.SelectedOptionId,
-                a.EssayText,
-                a.EssayAttachmentFileName,
-                a.EssayAttachmentPath,
-                a.AwardedScore,
-                eq.Score
+                AnswerId = answer.Id,
+                answer.QuestionId,
+                question.Title,
+                question.Type,
+                answer.SelectedOptionId,
+                answer.EssayText,
+                answer.EssayAttachmentFileName,
+                answer.EssayAttachmentPath,
+                answer.AwardedScore,
+                examQuestion.Score
             })
             .ToListAsync(cancellationToken);
 
-        var optionIds = answers.Where(x => x.SelectedOptionId.HasValue).Select(x => x.SelectedOptionId!.Value).ToArray();
+        var optionIds = answers
+            .Where(answer => answer.SelectedOptionId.HasValue)
+            .Select(answer => answer.SelectedOptionId!.Value)
+            .Distinct()
+            .ToArray();
 
-        var optionMap = await _dbContext.QuestionOptions
-            .Where(x => optionIds.Contains(x.Id))
-            .ToDictionaryAsync(x => x.Id, x => x.Text, cancellationToken);
+        var optionMap = optionIds.Length == 0
+            ? new Dictionary<Guid, string>()
+            : await _dbContext.QuestionOptions
+                .Where(option => optionIds.Contains(option.Id))
+                .ToDictionaryAsync(
+                    option => option.Id,
+                    option => option.Text,
+                    cancellationToken);
 
-        var result = new ExamSubmissionDetailsDto(
-            header.Id,
-            header.StudentFullName,
+        var answerDtos = answers
+            .Select(answer =>
+            {
+                string? selectedOptionText = null;
+
+                if (answer.SelectedOptionId.HasValue)
+                {
+                    optionMap.TryGetValue(
+                        answer.SelectedOptionId.Value,
+                        out selectedOptionText);
+                }
+
+                return new ExamSubmissionAnswerDto(
+                    answer.AnswerId,
+                    answer.QuestionId,
+                    answer.Title,
+                    answer.Type,
+                    answer.Score,
+                    selectedOptionText,
+                    answer.EssayText,
+                    answer.EssayAttachmentFileName,
+                    answer.EssayAttachmentPath,
+                    answer.AwardedScore);
+            })
+            .ToArray();
+
+        var details = new ExamSubmissionDetailsDto(
+            header.SubmissionId,
+            $"{student.FirstName} {student.LastName}".Trim(),
             header.StudentNumber,
             header.AttemptNumber,
             header.StartedAtUtc,
             header.SubmittedAtUtc,
             header.TotalScore,
-            answers.Select(x => new ExamSubmissionAnswerDto(
-                x.Id,
-                x.QuestionId,
-                x.Title,
-                x.Type,
-                x.Score,
-                x.SelectedOptionId.HasValue && optionMap.ContainsKey(x.SelectedOptionId.Value) ? optionMap[x.SelectedOptionId.Value] : null,
-                x.EssayText,
-                x.EssayAttachmentFileName,
-                x.EssayAttachmentPath,
-                x.AwardedScore)).ToArray());
+            answerDtos);
 
-        return Result<ExamSubmissionDetailsDto>.Success(result);
+        return Result<ExamSubmissionDetailsDto>.Success(details);
     }
 }

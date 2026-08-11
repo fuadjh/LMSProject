@@ -26,7 +26,7 @@ public sealed class StartExamAttemptCommandHandler : IRequestHandler<StartExamAt
             return Result<Guid>.Unauthorized("auth.required", "کاربر احراز هویت نشده است.");
 
         var studentProfileId = await _dbContext.StudentProfiles
-            .Where(x => x.UserId == _currentUser.UserId.Value)
+            .Where(x => x.Id == _currentUser.UserId.Value)
             .Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(cancellationToken);
 
