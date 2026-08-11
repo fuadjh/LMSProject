@@ -17,30 +17,46 @@ public sealed class UserAccountService : IUserAccountService
     {
         _userManager = userManager;
     }
-
-    public async Task<UserAccountDto?> FindByIdAsync(
-        Guid userId,
-        CancellationToken cancellationToken = default)
+    public Task<UserAccountDto?> FindByIdAsync(
+    Guid userId,
+    CancellationToken cancellationToken = default)
     {
-        return await _userManager.Users
-            .AsNoTracking()
-            .Where(user => user.Id == userId)
-            .Select(user => Map(user))
-            .FirstOrDefaultAsync(cancellationToken);
+        return Project(_userManager.Users.AsNoTracking())
+            .SingleOrDefaultAsync(
+                x => x.Id == userId,
+                cancellationToken);
     }
 
-    public async Task<UserAccountDto?> FindByNationalCodeAsync(
+    public Task<UserAccountDto?> FindByNationalCodeAsync(
         string nationalCode,
         CancellationToken cancellationToken = default)
     {
         var normalized =
             IranianIdentityNormalizer.NormalizeNationalCode(nationalCode);
 
-        return await _userManager.Users
-            .AsNoTracking()
-            .Where(user => user.NationalCode == normalized)
-            .Select(user => Map(user))
-            .FirstOrDefaultAsync(cancellationToken);
+        return Project(
+                _userManager.Users
+                    .AsNoTracking()
+                    .Where(x => x.NationalCode == normalized))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    private static IQueryable<UserAccountDto> Project(
+      IQueryable<ApplicationUser> query)
+    {
+        return query.Select(user => new UserAccountDto(
+            user.Id,
+            user.UserName ?? string.Empty,
+            user.FirstName,
+            user.LastName,
+            user.NationalCode,
+            user.PhoneNumber ?? string.Empty,
+            user.Email,
+            user.LatinFirstName,
+            user.LatinLastName,
+            user.Gender,
+            user.ProfileImagePath,
+            user.IsActive));
     }
 
     public Task<bool> UserNameExistsAsync(
@@ -215,20 +231,5 @@ public sealed class UserAccountService : IUserAccountService
                 result.Errors.Select(error => error.Description).ToArray());
     }
 
-    private static UserAccountDto Map(ApplicationUser user)
-    {
-        return new UserAccountDto(
-            user.Id,
-            user.UserName ?? string.Empty,
-            user.FirstName,
-            user.LastName,
-            user.NationalCode,
-            user.PhoneNumber ?? string.Empty,
-            user.Email,
-            user.LatinFirstName,
-            user.LatinLastName,
-            user.Gender,
-            user.ProfileImagePath,
-            user.IsActive);
-    }
+   
 }

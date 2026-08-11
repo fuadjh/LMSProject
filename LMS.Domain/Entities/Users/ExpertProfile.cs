@@ -8,31 +8,19 @@ public sealed class ExpertProfile : BaseEntity
     {
     }
 
-    public bool IsActive { get; private set; }
+    public Guid UserProfileId { get; private set; }
 
-    public static ExpertProfile Create(Guid userId)
+    public static ExpertProfile Create(Guid userProfileId)
     {
-        if (userId == Guid.Empty)
-        {
+        if (userProfileId == Guid.Empty)
             throw new ArgumentException(
-                "شناسه کاربر الزامی است.",
-                nameof(userId));
-        }
+                "شناسه پروفایل کاربر الزامی است.",
+                nameof(userProfileId));
 
         return new ExpertProfile
         {
-            Id = userId,
-            IsActive = true
+            Id = Guid.NewGuid(),
+            UserProfileId = userProfileId
         };
-    }
-
-    public void Activate()
-    {
-        IsActive = true;
-    }
-
-    public void Deactivate()
-    {
-        IsActive = false;
     }
 }

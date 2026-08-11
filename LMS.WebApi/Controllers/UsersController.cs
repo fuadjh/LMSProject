@@ -1,74 +1,120 @@
-﻿using Application.Security.Queries.GetRoles;
+﻿using Application.Users.Commands.CreateUser;
 using Application.Users.Commands.DeleteUser;
-using Application.Users.Queries.GetUserByNationalCode;
-using Application.Users.Queries.GetUserAccessDetails;
-using Common.Security;
+using Application.Users.Commands.UpdateUser;
+using Application.Users.Queries;
+using Common.Enums;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WebApi.Authorization;
-using WebApi.Extensions;
 
-namespace WebApi.Controllers;
+namespace LMS.WebApi.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/users")]
-public sealed class UsersController : ControllerBase
+public sealed class UsersController(ISender sender) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public UsersController(IMediator mediator)
+    [HttpGet]
+    public async Task<IActionResult> GetUsers(
+        [FromQuery] UserRoleType role,
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool descending = false,
+        CancellationToken cancellationToken = default)
     {
-        _mediator = mediator;
-    }
-
-    [HttpGet("by-national-code/{nationalCode}")]
-    [HasPermission(Permissions.Security.UsersRead)]
-    public async Task<IActionResult> GetByNationalCode(
-        string nationalCode,
-        CancellationToken cancellationToken)
-    {
-        var result = await _mediator.Send(
-            new GetUserByNationalCodeQuery(nationalCode),
+        var result = await sender.Send(
+            new GetUsersQuery(
+                role,
+                search,
+                page,
+                pageSize,
+                sortBy,
+                descending),
             cancellationToken);
 
-        return result.ToActionResult(this);
+        return Ok(result);
     }
 
-    [HttpGet("{UserId:guid}/access")]
-    [HasPermission(Permissions.Security.UsersRead)]
-    public async Task<IActionResult> GetAccessDetails(
-        Guid UserId,
+    [HttpGet("{userId:guid}")]
+    public async Task<IActionResult> GetUser(
+        Guid userId,
+        [FromQuery] UserRoleType role,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(
-            new GetUserAccessDetailsQuery(UserId),
+        var result = await sender.Send(
+            new GetUserDetailsQuery(userId, role),
             cancellationToken);
 
-        return result.ToActionResult(this);
+        return result is null
+            ? NotFound()
+            : Ok(result);
     }
 
-    [HttpGet("roles")]
-    [HasPermission(Permissions.Security.UserRolesAssign)]
-    public async Task<IActionResult> GetRoles(
+    [HttpPost]
+    public async Task<IActionResult> Create(
+        [FromBody] CreateUserCommand command,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(
-            new GetRolesQuery(),
-            cancellationToken);
+        var result =
+            await sender.Send(command, cancellationToken);
 
-        return result.ToActionResult(this);
+        if (result.IsFailure)
+            return BadRequest(new { errors = result.Errors });
+
+        return CreatedAtAction(
+            nameof(GetUser),
+            new
+            {
+                userId = result.Value,
+                role = command.Role
+            },
+            new
+            {
+                id = result.Value
+            });
     }
 
-    [HttpDelete("{UserId:guid}")]
-    [HasPermission(Permissions.Security.UsersDelete)]
+    [HttpPut("{userId:guid}")]
+    public async Task<IActionResult> Update(
+        Guid userId,
+        [FromBody] UpdateUserCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (command.UserId != Guid.Empty &&
+            command.UserId != userId)
+        {
+            return BadRequest(new
+            {
+                errors = new[]
+                {
+                    "شناسه مسیر با شناسه درخواست یکسان نیست."
+                }
+            });
+        }
+
+        command.UserId = userId;
+
+        var result =
+            await sender.Send(command, cancellationToken);
+
+        return result.IsFailure
+            ? BadRequest(new { errors = result.Errors })
+            : NoContent();
+    }
+
+    [HttpDelete("{userId:guid}")]
     public async Task<IActionResult> Delete(
-        Guid UserId,
+        Guid userId,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(
-            new DeleteUserCommand(UserId),
+        var result = await sender.Send(
+            new DeleteUserCommand(userId),
             cancellationToken);
 
-        return result.ToActionResult(this);
+        return result.IsFailure
+            ? BadRequest(new { errors = result.Errors })
+            : NoContent();
     }
 }

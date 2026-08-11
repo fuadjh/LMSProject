@@ -1,6 +1,8 @@
 using Application.Abstractions.Read;
 using Application.Common.Models;
-using Domain.Entities.Users;
+using Common.Enums;
+using Common.Security;
+using Common.Validation;
 using Infrastructure.Identity;
 using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -8,31 +10,44 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Services;
 
-public sealed class UserAdminReadService : IUserAdminReadService
+public sealed class UserAdminReadService(
+    LmsDbContext dbContext,
+    UserManager<ApplicationUser> userManager,
+    RoleManager<ApplicationRole> roleManager)
+    : IUserAdminReadService
 {
-    private readonly LmsDbContext _dbContext;
-    private readonly UserManager<ApplicationUser> _userManager;
-
-    public UserAdminReadService(
-        LmsDbContext dbContext,
-        UserManager<ApplicationUser> userManager)
-    {
-        _dbContext = dbContext;
-        _userManager = userManager;
-    }
-
-    public async Task<IReadOnlyCollection<UserLookupDto>> SearchUsersAsync(
+    public async Task<PagedResponse<UserProfileListItemDto>> GetUsersAsync(
+        UserRoleType role,
         string? search,
+        int page,
+        int pageSize,
+        string? sortBy,
+        bool descending,
         CancellationToken cancellationToken = default)
     {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var roleName = GetRoleName(role);
+        var normalizedRoleName = roleName.ToUpperInvariant();
+
+        var roleIdQuery = dbContext.Roles
+            .Where(x => x.NormalizedName == normalizedRoleName)
+            .Select(x => x.Id);
+
+        var roleUserIds = dbContext.UserRoles
+            .Where(x => roleIdQuery.Contains(x.RoleId))
+            .Select(x => x.UserId);
+
         var query =
-            from profile in _dbIUserAccountService.AsNoTracking()
-            join user in _dbContext.Users.AsNoTracking()
-                on profile.AuthUserId equals user.Id
+            from user in dbContext.Users.AsNoTracking()
+            join profile in dbContext.UserProfiles.AsNoTracking()
+                on user.Id equals profile.AuthUserId
+            where roleUserIds.Contains(user.Id)
             select new
             {
-                Profile = profile,
-                User = user
+                User = user,
+                Profile = profile
             };
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -40,14 +55,282 @@ public sealed class UserAdminReadService : IUserAdminReadService
             var value = search.Trim();
 
             query = query.Where(x =>
-                (x.User.UserName != null &&
-                 x.User.UserName.Contains(value)) ||
-                (x.User.Email != null &&
-                 x.User.Email.Contains(value)) ||
-                (x.Profile.NationalCode != null &&
-                 x.Profile.NationalCode.Contains(value)) ||
-                (x.Profile.FirstName + " " + x.Profile.LastName)
-                    .Contains(value));
+                x.User.UserName!.Contains(value) ||
+                x.User.NationalCode.Contains(value) ||
+                x.User.PhoneNumber!.Contains(value) ||
+                x.Profile.FirstName.Contains(value) ||
+                x.Profile.LastName.Contains(value));
+        }
+
+        query = (sortBy?.ToLowerInvariant(), descending) switch
+        {
+            ("username", true) =>
+                query.OrderByDescending(x => x.User.UserName),
+
+            ("username", false) =>
+                query.OrderBy(x => x.User.UserName),
+
+            ("nationalcode", true) =>
+                query.OrderByDescending(x => x.User.NationalCode),
+
+            ("nationalcode", false) =>
+                query.OrderBy(x => x.User.NationalCode),
+
+            (_, true) =>
+                query.OrderByDescending(x => x.Profile.FirstName)
+                    .ThenByDescending(x => x.Profile.LastName),
+
+            _ =>
+                query.OrderBy(x => x.Profile.FirstName)
+                    .ThenBy(x => x.Profile.LastName)
+        };
+
+        var totalCount =
+            await query.CountAsync(cancellationToken);
+
+        var rows = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new UserProfileListItemDto(
+                x.User.Id,
+                x.Profile.Id,
+                x.User.UserName ?? string.Empty,
+                x.Profile.FirstName + " " + x.Profile.LastName,
+                x.User.NationalCode,
+                x.User.PhoneNumber ?? string.Empty,
+                role,
+                x.User.IsActive && x.Profile.IsActive,
+                role == UserRoleType.Student
+                    ? dbContext.StudentProfiles
+                        .Where(p => p.UserProfileId == x.Profile.Id)
+                        .Select(p => p.StudentNumber)
+                        .FirstOrDefault()
+                    : null,
+                role == UserRoleType.Instructor
+                    ? dbContext.InstructorProfiles
+                        .Where(p => p.UserProfileId == x.Profile.Id)
+                        .Select(p => p.PersonnelCode)
+                        .FirstOrDefault()
+                    : null))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResponse<UserProfileListItemDto>(
+            rows,
+            page,
+            pageSize,
+            totalCount);
+    }
+
+    public async Task<UserProfileDetailsDto?> GetUserDetailsAsync(
+        Guid userId,
+        UserRoleType role,
+        CancellationToken cancellationToken = default)
+    {
+        var data = await (
+            from user in dbContext.Users.AsNoTracking()
+            join profile in dbContext.UserProfiles.AsNoTracking()
+                on user.Id equals profile.AuthUserId
+            where user.Id == userId
+            select new
+            {
+                User = user,
+                Profile = profile
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (data is null)
+            return null;
+
+        string? studentNumber = null;
+        Guid? studentMajorId = null;
+        string? personnelCode = null;
+
+        if (role == UserRoleType.Student)
+        {
+            var student = await dbContext.StudentProfiles
+                .AsNoTracking()
+                .Where(x => x.UserProfileId == data.Profile.Id)
+                .Select(x => new
+                {
+                    x.StudentNumber,
+                    x.MajorId
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+
+            studentNumber = student?.StudentNumber;
+            studentMajorId = student?.MajorId;
+        }
+
+        if (role == UserRoleType.Instructor)
+        {
+            personnelCode = await dbContext.InstructorProfiles
+                .AsNoTracking()
+                .Where(x => x.UserProfileId == data.Profile.Id)
+                .Select(x => x.PersonnelCode)
+                .SingleOrDefaultAsync(cancellationToken);
+        }
+
+        var facultyIds = await dbContext
+            .Set<Domain.Entities.Users.UserFacultyScope>()
+            .AsNoTracking()
+            .Where(x => x.UserProfileId == data.Profile.Id)
+            .Select(x => x.FacultyId)
+            .ToListAsync(cancellationToken);
+
+        var majorIds = await dbContext
+            .Set<Domain.Entities.Users.UserMajorScope>()
+            .AsNoTracking()
+            .Where(x => x.UserProfileId == data.Profile.Id)
+            .Select(x => x.MajorId)
+            .ToListAsync(cancellationToken);
+
+        return new UserProfileDetailsDto(
+            data.User.Id,
+            data.Profile.Id,
+            data.User.UserName ?? string.Empty,
+            data.Profile.FirstName,
+            data.Profile.LastName,
+            data.User.NationalCode,
+            data.User.PhoneNumber ?? string.Empty,
+            data.User.Email,
+            data.User.LatinFirstName,
+            data.User.LatinLastName,
+            data.User.Gender,
+            data.User.ProfileImagePath,
+            data.User.IsActive && data.Profile.IsActive,
+            role,
+            studentNumber,
+            studentMajorId,
+            personnelCode,
+            facultyIds,
+            majorIds);
+    }
+
+    public async Task<UserByNationalCodeDto?> GetUserByNationalCodeAsync(
+        string nationalCode,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized =
+            IranianIdentityNormalizer.NormalizeNationalCode(nationalCode);
+
+        return await (
+            from user in dbContext.Users.AsNoTracking()
+            join profile in dbContext.UserProfiles.AsNoTracking()
+                on user.Id equals profile.AuthUserId
+            where user.NationalCode == normalized
+            select new UserByNationalCodeDto(
+                user.Id,
+                user.UserName ?? string.Empty,
+                profile.FirstName,
+                profile.LastName,
+                user.NationalCode,
+                user.PhoneNumber,
+                user.Email,
+                user.IsActive && profile.IsActive,
+                dbContext.StudentProfiles.Any(
+                    x => x.UserProfileId == profile.Id),
+                dbContext.InstructorProfiles.Any(
+                    x => x.UserProfileId == profile.Id),
+                dbContext.ExpertProfiles.Any(
+                    x => x.UserProfileId == profile.Id)))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<UserAccessDetailsDto?> GetUserAccessDetailsAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var data = await (
+            from user in dbContext.Users.AsNoTracking()
+            join profile in dbContext.UserProfiles.AsNoTracking()
+                on user.Id equals profile.AuthUserId
+            where user.Id == userId
+            select new
+            {
+                User = user,
+                Profile = profile
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (data is null)
+            return null;
+
+        var identityUser =
+            await userManager.FindByIdAsync(userId.ToString());
+
+        if (identityUser is null)
+            return null;
+
+        var roles = await userManager.GetRolesAsync(identityUser);
+        var permissions = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var roleName in roles)
+        {
+            var identityRole =
+                await roleManager.FindByNameAsync(roleName);
+
+            if (identityRole is null)
+                continue;
+
+            var claims =
+                await roleManager.GetClaimsAsync(identityRole);
+
+            foreach (var claim in claims.Where(
+                         x => x.Type == CustomClaimTypes.Permission))
+            {
+                permissions.Add(claim.Value);
+            }
+        }
+
+        var facultyIds = await dbContext
+            .Set<Domain.Entities.Users.UserFacultyScope>()
+            .AsNoTracking()
+            .Where(x => x.UserProfileId == data.Profile.Id)
+            .Select(x => x.FacultyId)
+            .ToListAsync(cancellationToken);
+
+        var majorIds = await dbContext
+            .Set<Domain.Entities.Users.UserMajorScope>()
+            .AsNoTracking()
+            .Where(x => x.UserProfileId == data.Profile.Id)
+            .Select(x => x.MajorId)
+            .ToListAsync(cancellationToken);
+
+        return new UserAccessDetailsDto(
+            data.User.Id,
+            data.Profile.FirstName + " " + data.Profile.LastName,
+            data.User.UserName ?? string.Empty,
+            data.User.IsActive && data.Profile.IsActive,
+            roles.ToArray(),
+            permissions.ToArray(),
+            facultyIds,
+            majorIds);
+    }
+
+    public async Task<IReadOnlyCollection<UserLookupDto>> SearchUsersAsync(
+        string? search,
+        CancellationToken cancellationToken = default)
+    {
+        var query =
+            from profile in dbContext.UserProfiles.AsNoTracking()
+            join user in dbContext.Users.AsNoTracking()
+                on profile.AuthUserId equals user.Id
+            select new
+            {
+                User = user,
+                Profile = profile
+            };
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var value = search.Trim();
+
+            query = query.Where(x =>
+                x.User.UserName!.Contains(value) ||
+                x.User.NationalCode.Contains(value) ||
+                x.Profile.FirstName.Contains(value) ||
+                x.Profile.LastName.Contains(value));
         }
 
         return await query
@@ -59,356 +342,18 @@ public sealed class UserAdminReadService : IUserAdminReadService
                 x.User.Id,
                 x.Profile.FirstName + " " + x.Profile.LastName,
                 x.User.UserName ?? string.Empty,
-                x.Profile.IsActive && x.User.IsActive))
+                x.User.IsActive && x.Profile.IsActive))
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<UserAccessDetailsDto?> GetUserAccessDetailsAsync(
-        Guid UserId,
-        CancellationToken cancellationToken = default)
-    {
-        var data = await (
-                from profile in _dbIUserAccountService.AsNoTracking()
-                join user in _dbContext.Users.AsNoTracking()
-                    on profile.AuthUserId equals user.Id
-                where profile.Id == UserId
-                select new
-                {
-                    profile.Id,
-                    AuthUserId = user.Id,
-                    FullName = profile.FirstName + " " + profile.LastName,
-                    UserName = user.UserName ?? string.Empty
-                })
-            .SingleOrDefaultAsync(cancellationToken);
-
-        if (data is null)
-            return null;
-
-        var roles = await GetRolesAsync(data.AuthUserId);
-
-        var facultyIds = await _dbContext
-            .Set<UserFacultyScope>()
-            .AsNoTracking()
-            .Where(x => x.UserId == UserId)
-            .Select(x => x.FacultyId)
-            .ToListAsync(cancellationToken);
-
-        var majorIds = await _dbContext
-            .Set<UserMajorScope>()
-            .AsNoTracking()
-            .Where(x => x.UserId == UserId)
-            .Select(x => x.MajorId)
-            .ToListAsync(cancellationToken);
-
-        return new UserAccessDetailsDto(
-            data.Id,
-            data.AuthUserId,
-            data.FullName,
-            data.UserName,
-            roles,
-            facultyIds,
-            majorIds);
-    }
-
-    public async Task<PagedResponse<UserListItemDto>> GetUsersAsync(
-        UserRoleType roleType,
-        string? search,
-        int pageNumber,
-        int pageSize,
-        string? sortBy,
-        bool sortDescending,
-        CancellationToken cancellationToken = default)
-    {
-        pageNumber = Math.Max(pageNumber, 1);
-        pageSize = Math.Clamp(pageSize, 1, 100);
-
-        var query = BuildProfileQuery(roleType);
-
-        if (!string.IsNullOrWhiteSpace(search))
+    private static string GetRoleName(UserRoleType role) =>
+        role switch
         {
-            var value = search.Trim();
-
-            query = query.Where(x =>
-                x.FirstName.Contains(value) ||
-                x.LastName.Contains(value) ||
-                (x.FirstName + " " + x.LastName).Contains(value) ||
-                x.UserName.Contains(value) ||
-                x.Email.Contains(value) ||
-                x.ProfileCode.Contains(value) ||
-                (x.NationalCode != null &&
-                 x.NationalCode.Contains(value)) ||
-                (x.MajorTitle != null &&
-                 x.MajorTitle.Contains(value)));
-        }
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        query = ApplySort(
-            query,
-            sortBy,
-            sortDescending);
-
-        var items = await query
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .Select(x => new UserProfileListItemDto(
-                x.UserId,
-                x.AuthUserId,
-                x.NationalCode,
-                x.UserName,
-                x.Email,
-                x.FirstName + " " + x.LastName,
-                x.ProfileCode,
-                x.MajorTitle,
-                x.IsActive))
-            .ToListAsync(cancellationToken);
-
-        return new PagedResponse<UserListItemDto>(
-            items,
-            totalCount);
-    }
-
-    public async Task<UserDetailsDto?>
-        GetUserDetailsAsync(
-            Guid UserId,
-            UserRoleType roleType,
-            CancellationToken cancellationToken = default)
-    {
-        var data = await BuildProfileQuery(roleType)
-            .SingleOrDefaultAsync(
-                x => x.UserId == UserId,
-                cancellationToken);
-
-        if (data is null)
-            return null;
-
-        var roles = await GetRolesAsync(data.AuthUserId);
-
-        var facultyIds = await _dbContext
-            .Set<UserFacultyScope>()
-            .AsNoTracking()
-            .Where(x => x.UserId == UserId)
-            .Select(x => x.FacultyId)
-            .ToListAsync(cancellationToken);
-
-        var majorIds = await _dbContext
-            .Set<UserMajorScope>()
-            .AsNoTracking()
-            .Where(x => x.UserId == UserId)
-            .Select(x => x.MajorId)
-            .ToListAsync(cancellationToken);
-
-        return new UserProfileDetailsDto(
-            data.UserId,
-            data.AuthUserId,
-            data.NationalCode,
-            data.UserName,
-            data.Email,
-            data.FirstName,
-            data.LastName,
-            data.IsActive,
-            roleType,
-            data.ProfileCode,
-            data.MajorId,
-            data.FacultyId,
-            data.MajorTitle,
-            roles,
-            facultyIds,
-            majorIds);
-    }
-
-    public async Task<UserByNationalCodeDto?>
-        GetUserByNationalCodeAsync(
-            string nationalCode,
-            CancellationToken cancellationToken = default)
-    {
-        var normalizedNationalCode =
-            UserProfile.NormalizeNationalCode(nationalCode);
-
-        return await (
-                from profile in _dbIUserAccountService.AsNoTracking()
-                join user in _dbContext.Users.AsNoTracking()
-                    on profile.AuthUserId equals user.Id
-                where profile.NationalCode == normalizedNationalCode
-                select new UserByNationalCodeDto(
-                    profile.Id,
-                    profile.AuthUserId,
-                    profile.NationalCode!,
-                    profile.FirstName + " " + profile.LastName,
-                    user.UserName ?? string.Empty,
-                    user.Email ?? string.Empty,
-                    profile.IsActive && user.IsActive,
-                    _dbContext.StudentProfiles.Any(
-                        x => x.UserId == profile.Id),
-                    _dbContext.InstructorProfiles.Any(
-                        x => x.UserId == profile.Id),
-                    _dbcontext.ExpertProfiles.Any(
-                        x => x.UserId == profile.Id)))
-            .SingleOrDefaultAsync(cancellationToken);
-    }
-
-    private IQueryable<UserRow> BuildProfileQuery(
-    UserRoleType roleType)
-    {
-        return roleType switch
-        {
-            UserRoleType.Student =>
-                from profile in _dbIUserAccountService.AsNoTracking()
-                join user in _dbContext.Users.AsNoTracking()
-                    on profile.AuthUserId equals user.Id
-                join student in _dbContext.StudentProfiles.AsNoTracking()
-                    on profile.Id equals student.UserId
-                join major in _dbContext.Majors.AsNoTracking()
-                    on student.MajorId equals major.Id
-                select new UserRow
-                {
-                    UserId = profile.Id,
-                    AuthUserId = profile.AuthUserId,
-                    NationalCode = profile.NationalCode,
-                    UserName = user.UserName ?? string.Empty,
-                    Email = user.Email ?? string.Empty,
-                    FirstName = profile.FirstName,
-                    LastName = profile.LastName,
-                    ProfileCode = student.StudentNumber,
-                    MajorId = student.MajorId,
-                    FacultyId = major.FacultyId,
-                    MajorTitle = major.Title,
-                    IsActive = profile.IsActive && user.IsActive
-                },
-
-            UserRoleType.Instructor =>
-                from profile in _dbIUserAccountService.AsNoTracking()
-                join user in _dbContext.Users.AsNoTracking()
-                    on profile.AuthUserId equals user.Id
-                join instructor in _dbContext.InstructorProfiles.AsNoTracking()
-                    on profile.Id equals instructor.UserId
-                select new UserRow
-                {
-                    UserId = profile.Id,
-                    AuthUserId = profile.AuthUserId,
-                    NationalCode = profile.NationalCode,
-                    UserName = user.UserName ?? string.Empty,
-                    Email = user.Email ?? string.Empty,
-                    FirstName = profile.FirstName,
-                    LastName = profile.LastName,
-                    ProfileCode = instructor.PersonnelCode,
-                    MajorId = null,
-                    FacultyId = null,
-                    MajorTitle = null,
-                    IsActive = profile.IsActive && user.IsActive
-                },
-
-            UserRoleType.EducationExpert =>
-                from profile in _dbIUserAccountService.AsNoTracking()
-                join user in _dbContext.Users.AsNoTracking()
-                    on profile.AuthUserId equals user.Id
-                join expert in _dbcontext.ExpertProfiles.AsNoTracking()
-                    on profile.Id equals expert.UserId
-                select new UserRow
-                {
-                    UserId = profile.Id,
-                    AuthUserId = profile.AuthUserId,
-                    NationalCode = profile.NationalCode,
-                    UserName = user.UserName ?? string.Empty,
-                    Email = user.Email ?? string.Empty,
-                    FirstName = profile.FirstName,
-                    LastName = profile.LastName,
-                    ProfileCode = expert.EmployeeCode,
-                    MajorId = null,
-                    FacultyId = null,
-                    MajorTitle = null,
-                    IsActive = profile.IsActive && user.IsActive
-                },
-
+            UserRoleType.Student => RoleNames.Student,
+            UserRoleType.Instructor => RoleNames.Instructor,
+            UserRoleType.EducationExpert => RoleNames.EducationExpert,
             _ => throw new ArgumentOutOfRangeException(
-                nameof(roleType),
-                roleType,
-                "نوع پروفایل پشتیبانی نمی‌شود.")
+                nameof(role),
+                "نوع کاربر معتبر نیست.")
         };
-    }
-
-    private static IQueryable<UserRow> ApplySort(
-        IQueryable<UserRow> query,
-        string? sortBy,
-        bool descending)
-    {
-        var normalizedSort = sortBy?
-            .Trim()
-            .ToLowerInvariant();
-
-        return (normalizedSort, descending) switch
-        {
-            ("username", true) =>
-                query.OrderByDescending(x => x.UserName),
-
-            ("username", false) =>
-                query.OrderBy(x => x.UserName),
-
-            ("nationalcode", true) =>
-                query.OrderByDescending(x => x.NationalCode),
-
-            ("nationalcode", false) =>
-                query.OrderBy(x => x.NationalCode),
-
-            ("profilecode", true) =>
-                query.OrderByDescending(x => x.ProfileCode),
-
-            ("profilecode", false) =>
-                query.OrderBy(x => x.ProfileCode),
-
-            ("major", true) =>
-                query.OrderByDescending(x => x.MajorTitle),
-
-            ("major", false) =>
-                query.OrderBy(x => x.MajorTitle),
-
-            (_, true) =>
-                query.OrderByDescending(x => x.LastName)
-                    .ThenByDescending(x => x.FirstName),
-
-            _ =>
-                query.OrderBy(x => x.LastName)
-                    .ThenBy(x => x.FirstName)
-        };
-    }
-
-    private async Task<IReadOnlyCollection<string>> GetRolesAsync(
-        Guid authUserId)
-    {
-        var user = await _userManager.FindByIdAsync(
-            authUserId.ToString());
-
-        if (user is null)
-            return Array.Empty<string>();
-
-        var roles = await _userManager.GetRolesAsync(user);
-        return roles.ToArray();
-    }
-
-    private sealed class UserRow
-    {
-        public Guid UserId { get; init; }
-
-        public Guid AuthUserId { get; init; }
-
-        public string? NationalCode { get; init; }
-
-        public string UserName { get; init; } = string.Empty;
-
-        public string Email { get; init; } = string.Empty;
-
-        public string FirstName { get; init; } = string.Empty;
-
-        public string LastName { get; init; } = string.Empty;
-
-        public string ProfileCode { get; init; } = string.Empty;
-
-        public Guid? MajorId { get; init; }
-
-        public Guid? FacultyId { get; init; }
-
-        public string? MajorTitle { get; init; }
-
-        public bool IsActive { get; init; }
-    }
 }

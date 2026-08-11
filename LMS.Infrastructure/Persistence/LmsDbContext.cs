@@ -83,6 +83,9 @@ public sealed class LmsDbContext
     public IQueryable<LearningTemplateItem> LearningTemplateItems =>
         Set<LearningTemplateItem>();
 
+    public IQueryable<UserProfile> UserProfiles =>
+      Set<UserProfile>();
+
     public IQueryable<StudentProfile> StudentProfiles =>
         Set<StudentProfile>();
 
@@ -92,28 +95,27 @@ public sealed class LmsDbContext
     public IQueryable<ExpertProfile> ExpertProfiles =>
         Set<ExpertProfile>();
 
+    public Task AddAsync<TEntity>(
+        TEntity entity,
+        CancellationToken cancellationToken = default)
+        where TEntity : class =>
+        Set<TEntity>()
+            .AddAsync(entity, cancellationToken)
+            .AsTask();
+
+    public void Remove<TEntity>(TEntity entity)
+        where TEntity : class =>
+        Set<TEntity>().Remove(entity);
+
     public IQueryable<UserFacultyScope> UserFacultyScopes =>
         Set<UserFacultyScope>();
 
     public IQueryable<UserMajorScope> UserMajorScopes =>
         Set<UserMajorScope>();
 
-    public Task AddAsync<TEntity>(
-        TEntity entity,
-        CancellationToken cancellationToken = default)
-        where TEntity : class
-    {
-        return Set<TEntity>()
-            .AddAsync(entity, cancellationToken)
-            .AsTask();
-    }
+   
 
-    public void Remove<TEntity>(TEntity entity)
-        where TEntity : class
-    {
-        Set<TEntity>().Remove(entity);
-    }
-
+   
     public Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default)
     {

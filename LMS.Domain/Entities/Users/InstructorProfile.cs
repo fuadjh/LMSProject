@@ -8,43 +8,37 @@ public sealed class InstructorProfile : BaseEntity
     {
     }
 
-    public string PersonnelCode { get; private set; } = null!;
+    public Guid UserProfileId { get; private set; }
 
-    public bool IsActive { get; private set; }
+    public string PersonnelCode { get; private set; } = string.Empty;
 
     public static InstructorProfile Create(
-        Guid userId,
+        Guid userProfileId,
         string personnelCode)
     {
-        if (userId == Guid.Empty)
-        {
+        if (userProfileId == Guid.Empty)
             throw new ArgumentException(
-                "شناسه کاربر الزامی است.",
-                nameof(userId));
-        }
+                "شناسه پروفایل کاربر الزامی است.",
+                nameof(userProfileId));
 
-        if (string.IsNullOrWhiteSpace(personnelCode))
+        var profile = new InstructorProfile
         {
-            throw new ArgumentException(
-                "کد پرسنلی استاد الزامی است.",
-                nameof(personnelCode));
-        }
-
-        return new InstructorProfile
-        {
-            Id = userId,
-            PersonnelCode = personnelCode.Trim(),
-            IsActive = true
+            Id = Guid.NewGuid(),
+            UserProfileId = userProfileId
         };
+
+        profile.Update(personnelCode);
+
+        return profile;
     }
 
-    public void Activate()
+    public void Update(string personnelCode)
     {
-        IsActive = true;
-    }
+        if (string.IsNullOrWhiteSpace(personnelCode))
+            throw new ArgumentException(
+                "کد پرسنلی الزامی است.",
+                nameof(personnelCode));
 
-    public void Deactivate()
-    {
-        IsActive = false;
+        PersonnelCode = personnelCode.Trim();
     }
 }

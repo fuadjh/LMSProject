@@ -1,5 +1,4 @@
 ﻿using Domain.Entities.Users;
-using Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,23 +7,21 @@ namespace Infrastructure.Persistence.Configurations;
 public sealed class ExpertProfileConfiguration
     : IEntityTypeConfiguration<ExpertProfile>
 {
-    public void Configure(
-        EntityTypeBuilder<ExpertProfile> builder)
+    public void Configure(EntityTypeBuilder<ExpertProfile> builder)
     {
         builder.ToTable("ExpertProfiles");
 
-        builder.HasKey(profile => profile.Id);
+        builder.HasKey(x => x.Id);
 
-        builder.Property(profile => profile.Id)
+        builder.Property(x => x.Id)
             .ValueGeneratedNever();
 
-        builder.Property(profile => profile.IsActive)
-            .HasDefaultValue(true)
-            .IsRequired();
+        builder.HasIndex(x => x.UserProfileId)
+            .IsUnique();
 
-        builder.HasOne<ApplicationUser>()
-            .WithOne(user => user.ExpertProfile)
-            .HasForeignKey<ExpertProfile>(profile => profile.Id)
+        builder.HasOne<UserProfile>()
+            .WithOne()
+            .HasForeignKey<ExpertProfile>(x => x.UserProfileId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

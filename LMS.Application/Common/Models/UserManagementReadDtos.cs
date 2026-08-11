@@ -1,62 +1,38 @@
 ﻿using Common.Enums;
+using Common.Security;
 
 namespace Application.Common.Models;
 
-public sealed record UserLookupDto(
+public sealed record UserProfileListItemDto(
     Guid UserId,
+    Guid UserProfileId,
     string UserName,
     string FullName,
     string NationalCode,
-    string? PhoneNumber);
-
-public sealed record UserListItemDto(
-    Guid UserId,
-    UserRoleType RoleType,
-    string UserName,
-    string FirstName,
-    string LastName,
-    string FullName,
-    string NationalCode,
-    string? PhoneNumber,
-    string? Email,
+    string PhoneNumber,
+    UserRoleType Role,
     bool IsActive,
-    bool RoleIsActive,
-    string? RoleIdentifier,
-    Guid? FacultyId,
-    Guid? MajorId,
-    string? MajorTitle);
+    string? StudentNumber,
+    string? PersonnelCode);
 
-public sealed record UserDetailsDto(
+public sealed record UserProfileDetailsDto(
     Guid UserId,
-    UserRoleType RoleType,
+    Guid UserProfileId,
     string UserName,
     string FirstName,
     string LastName,
     string NationalCode,
-    string? PhoneNumber,
+    string PhoneNumber,
     string? Email,
     string? LatinFirstName,
     string? LatinLastName,
     Gender Gender,
     string? ProfileImagePath,
     bool IsActive,
-    bool RoleIsActive,
-    string? RoleIdentifier,
-    Guid? FacultyId,
-    Guid? MajorId,
-    string? MajorTitle,
-    IReadOnlyCollection<Guid> FacultyScopeIds,
-    IReadOnlyCollection<Guid> MajorScopeIds,
-    IReadOnlyCollection<string> Roles,
-    IReadOnlyCollection<string> Permissions);
-
-public sealed record UserAccessDetailsDto(
-    Guid UserId,
-    string UserName,
-    string FullName,
-    bool IsActive,
-    IReadOnlyCollection<string> Roles,
-    IReadOnlyCollection<string> Permissions,
+    UserRoleType Role,
+    string? StudentNumber,
+    Guid? StudentMajorId,
+    string? PersonnelCode,
     IReadOnlyCollection<Guid> FacultyScopeIds,
     IReadOnlyCollection<Guid> MajorScopeIds);
 
@@ -72,3 +48,20 @@ public sealed record UserByNationalCodeDto(
     bool HasStudentProfile,
     bool HasInstructorProfile,
     bool HasExpertProfile);
+
+public sealed record UserAccessDetailsDto(
+    Guid UserId,
+    string FullName,
+    string UserName,
+    bool IsActive,
+    IReadOnlyCollection<string> Roles,
+    IReadOnlyCollection<string> Permissions,
+    IReadOnlyCollection<Guid> FacultyScopeIds,
+    IReadOnlyCollection<Guid> MajorScopeIds);
+
+public sealed record UserLookupDto(
+    Guid UserProfileId,
+    Guid UserId,
+    string FullName,
+    string UserName,
+    bool IsActive);

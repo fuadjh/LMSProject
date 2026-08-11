@@ -1,6 +1,4 @@
-﻿using Domain.Entities.Academics;
-using Domain.Entities.Users;
-using Infrastructure.Identity;
+﻿using Domain.Entities.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,37 +7,33 @@ namespace Infrastructure.Persistence.Configurations;
 public sealed class StudentProfileConfiguration
     : IEntityTypeConfiguration<StudentProfile>
 {
-    public void Configure(
-        EntityTypeBuilder<StudentProfile> builder)
+    public void Configure(EntityTypeBuilder<StudentProfile> builder)
     {
         builder.ToTable("StudentProfiles");
 
-        builder.HasKey(profile => profile.Id);
+        builder.HasKey(x => x.Id);
 
-        builder.Property(profile => profile.Id)
+        builder.Property(x => x.Id)
             .ValueGeneratedNever();
 
-        builder.Property(profile => profile.StudentNumber)
+        builder.Property(x => x.StudentNumber)
             .HasMaxLength(50)
-            .IsUnicode(false)
             .IsRequired();
 
-        builder.Property(profile => profile.IsActive)
-            .HasDefaultValue(true)
-            .IsRequired();
+        builder.HasIndex(x => x.StudentNumber)
+            .IsUnique();
 
-        builder.HasIndex(profile => profile.StudentNumber)
-            .IsUnique()
-            .HasDatabaseName("UX_StudentProfiles_StudentNumber");
+        builder.HasIndex(x => x.UserProfileId)
+            .IsUnique();
 
-        builder.HasOne<ApplicationUser>()
-            .WithOne(user => user.StudentProfile)
-            .HasForeignKey<StudentProfile>(profile => profile.Id)
+        builder.HasOne<UserProfile>()
+            .WithOne()
+            .HasForeignKey<StudentProfile>(x => x.UserProfileId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne<Major>()
+        builder.HasOne<Domain.Entities.Academics.Major>()
             .WithMany()
-            .HasForeignKey(profile => profile.MajorId)
+            .HasForeignKey(x => x.MajorId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

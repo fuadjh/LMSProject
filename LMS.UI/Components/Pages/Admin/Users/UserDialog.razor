@@ -1,0 +1,344 @@
+﻿@using System.Net.Http.Json
+@using Application.Common.Models
+@using Application.Users.Commands.UpdateUser
+@using Common.Enums
+@using Common.Security
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true"
+                               Color="Color.Primary" />
+        }
+        else
+        {
+            <MudForm @ref="_form">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="نام"
+                                      @bind-Value="_model.FirstName"
+                                      Required="true" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="نام خانوادگی"
+                                      @bind-Value="_model.LastName"
+                                      Required="true" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="نام کاربری"
+                                      @bind-Value="_model.UserName"
+                                      Disabled="@IsEdit"
+                                      Required="true" />
+                    </MudItem>
+
+                    @if (!IsEdit)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudTextField T="string"
+                                          Label="رمز عبور"
+                                          InputType="InputType.Password"
+                                          @bind-Value="_model.Password"
+                                          Required="true" />
+                        </MudItem>
+                    }
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="کد ملی"
+                                      @bind-Value="_model.NationalCode"
+                                      Disabled="@IsEdit"
+                                      Required="true" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="شماره همراه"
+                                      @bind-Value="_model.PhoneNumber"
+                                      Required="true" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="ایمیل"
+                                      @bind-Value="_model.Email"
+                                      InputType="InputType.Email" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="Gender"
+                                   Label="جنسیت"
+                                   @bind-Value="_model.Gender">
+                            @foreach (var gender in Enum.GetValues<Gender>())
+                            {
+                                <MudSelectItem Value="gender">
+                                    @gender
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudSelect T="UserRoleType"
+                                   Label="نوع کاربر"
+                                   @bind-Value="_model.Role"
+                                   Disabled="@IsEdit"
+                                   Required="true">
+                            <MudSelectItem Value="UserRoleType.Student">
+                                دانشجو
+                            </MudSelectItem>
+                            <MudSelectItem Value="UserRoleType.Instructor">
+                                مدرس
+                            </MudSelectItem>
+                            <MudSelectItem Value="UserRoleType.EducationExpert">
+                                کارشناس آموزش
+                            </MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+
+                    @if (_model.Role == UserRoleType.Student)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudTextField T="string"
+                                          Label="شماره دانشجویی"
+                                          @bind-Value="_model.StudentNumber"
+                                          Required="true" />
+                        </MudItem>
+
+                        <MudItem xs="12" md="6">
+                            <MudTextField T="Guid?"
+                                          Label="شناسه رشته"
+                                          @bind-Value="_model.StudentMajorId"
+                                          Required="true" />
+                        </MudItem>
+                    }
+
+                    @if (_model.Role == UserRoleType.Instructor)
+                    {
+                        <MudItem xs="12">
+                            <MudTextField T="string"
+                                          Label="کد پرسنلی"
+                                          @bind-Value="_model.PersonnelCode"
+                                          Required="true" />
+                        </MudItem>
+                    }
+
+                    @if (IsEdit)
+                    {
+                        <MudItem xs="12">
+                            <MudSwitch T="bool"
+                                       Label="کاربر فعال باشد"
+                                       Color="Color.Success"
+                                       @bind-Value="_model.IsActive" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudForm>
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel">
+            انصراف
+        </MudButton>
+
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="_saving"
+                   OnClick="SaveAsync">
+            ذخیره
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid? UserId { get; set; }
+
+    [Parameter]
+    public UserRoleType Role { get; set; }
+
+    private MudForm? _form;
+    private UserEditorModel _model = new();
+    private bool _loading;
+    private bool _saving;
+
+    private bool IsEdit =>
+        UserId.HasValue && UserId.Value != Guid.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _model.Role = Role;
+
+        if (!IsEdit)
+            return;
+
+        _loading = true;
+
+        try
+        {
+            var details = await Http.GetFromJsonAsync<UserProfileDetailsDto>(
+                $"api/users/{UserId}?role={Role}");
+
+            if (details is null)
+            {
+                Snackbar.Add("اطلاعات کاربر پیدا نشد.", Severity.Error);
+                MudDialog.Cancel();
+                return;
+            }
+
+            _model = new UserEditorModel
+            {
+                UserName = details.UserName,
+                FirstName = details.FirstName,
+                LastName = details.LastName,
+                NationalCode = details.NationalCode,
+                PhoneNumber = details.PhoneNumber,
+                Email = details.Email,
+                LatinFirstName = details.LatinFirstName,
+                LatinLastName = details.LatinLastName,
+                Gender = details.Gender,
+                ProfileImagePath = details.ProfileImagePath,
+                IsActive = details.IsActive,
+                Role = details.Role,
+                StudentNumber = details.StudentNumber,
+                StudentMajorId = details.StudentMajorId,
+                PersonnelCode = details.PersonnelCode,
+                FacultyScopeIds = details.FacultyScopeIds,
+                MajorScopeIds = details.MajorScopeIds
+            };
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_form is null)
+            return;
+
+        await _form.Validate();
+
+        if (!_form.IsValid)
+            return;
+
+        _saving = true;
+
+        try
+        {
+            HttpResponseMessage response;
+
+            if (IsEdit)
+            {
+                var command = new UpdateUserCommand
+                {
+                    UserId = UserId!.Value,
+                    Role = _model.Role,
+                    FirstName = _model.FirstName,
+                    LastName = _model.LastName,
+                    PhoneNumber = _model.PhoneNumber,
+                    Email = _model.Email,
+                    LatinFirstName = _model.LatinFirstName,
+                    LatinLastName = _model.LatinLastName,
+                    Gender = _model.Gender,
+                    ProfileImagePath = _model.ProfileImagePath,
+                    IsActive = _model.IsActive,
+                    StudentNumber = _model.StudentNumber,
+                    StudentMajorId = _model.StudentMajorId,
+                    PersonnelCode = _model.PersonnelCode,
+                    FacultyScopeIds = _model.FacultyScopeIds,
+                    MajorScopeIds = _model.MajorScopeIds
+                };
+
+                response = await Http.PutAsJsonAsync(
+                    $"api/users/{UserId}",
+                    command);
+            }
+            else
+            {
+                var command = new CreateUserCommand
+                {
+                    UserName = _model.UserName,
+                    Password = _model.Password,
+                    FirstName = _model.FirstName,
+                    LastName = _model.LastName,
+                    NationalCode = _model.NationalCode,
+                    PhoneNumber = _model.PhoneNumber,
+                    Email = _model.Email,
+                    LatinFirstName = _model.LatinFirstName,
+                    LatinLastName = _model.LatinLastName,
+                    Gender = _model.Gender,
+                    ProfileImagePath = _model.ProfileImagePath,
+                    Role = _model.Role,
+                    StudentNumber = _model.StudentNumber,
+                    StudentMajorId = _model.StudentMajorId,
+                    PersonnelCode = _model.PersonnelCode,
+                    FacultyScopeIds = _model.FacultyScopeIds,
+                    MajorScopeIds = _model.MajorScopeIds
+                };
+
+                response = await Http.PostAsJsonAsync(
+                    "api/users",
+                    command);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(
+                    "ذخیره اطلاعات کاربر ناموفق بود.",
+                    Severity.Error);
+
+                return;
+            }
+
+            Snackbar.Add(
+                IsEdit
+                    ? "کاربر ویرایش شد."
+                    : "کاربر ایجاد شد.",
+                Severity.Success);
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private sealed class UserEditorModel
+    {
+        public string UserName { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string NationalCode { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? LatinFirstName { get; set; }
+        public string? LatinLastName { get; set; }
+        public Gender Gender { get; set; }
+        public string? ProfileImagePath { get; set; }
+        public bool IsActive { get; set; } = true;
+        public UserRoleType Role { get; set; }
+        public string? StudentNumber { get; set; }
+        public Guid? StudentMajorId { get; set; }
+        public string? PersonnelCode { get; set; }
+        public IReadOnlyCollection<Guid> FacultyScopeIds { get; set; } = [];
+        public IReadOnlyCollection<Guid> MajorScopeIds { get; set; } = [];
+    }
+}
