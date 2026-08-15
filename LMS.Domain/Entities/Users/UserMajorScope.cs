@@ -29,7 +29,10 @@ public sealed class UserMajorScope : BaseEntity
 
         if (!Enum.IsDefined(roleType))
         {
-            throw new ArgumentOutOfRangeException(nameof(roleType));
+            throw new ArgumentOutOfRangeException(
+                nameof(roleType),
+                roleType,
+                "نوع نقش معتبر نیست.");
         }
 
         if (majorId == Guid.Empty)

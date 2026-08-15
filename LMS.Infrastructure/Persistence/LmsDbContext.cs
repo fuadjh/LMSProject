@@ -95,6 +95,7 @@ public sealed class LmsDbContext
     public IQueryable<ExpertProfile> ExpertProfiles =>
         Set<ExpertProfile>();
 
+
     public Task AddAsync<TEntity>(
         TEntity entity,
         CancellationToken cancellationToken = default)

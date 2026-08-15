@@ -29,7 +29,10 @@ public sealed class UserFacultyScope : BaseEntity
 
         if (!Enum.IsDefined(roleType))
         {
-            throw new ArgumentOutOfRangeException(nameof(roleType));
+            throw new ArgumentOutOfRangeException(
+                nameof(roleType),
+                roleType,
+                "نوع نقش معتبر نیست.");
         }
 
         if (facultyId == Guid.Empty)
