@@ -5,17 +5,20 @@ using Common.Validation;
 using Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-
+using System.Collections.Generic;
+using System.Linq;
 namespace Infrastructure.Services;
 
 public sealed class UserAccountService : IUserAccountService
 {
     private readonly UserManager<ApplicationUser> _userManager;
-
+    private readonly RoleManager<ApplicationRole> _roleManager;
     public UserAccountService(
-        UserManager<ApplicationUser> userManager)
+     UserManager<ApplicationUser> userManager,
+     RoleManager<ApplicationRole> roleManager)
     {
         _userManager = userManager;
+        _roleManager = roleManager;
     }
     public Task<UserAccountDto?> FindByIdAsync(
     Guid userId,
@@ -230,6 +233,106 @@ public sealed class UserAccountService : IUserAccountService
             : IdentityOperationResult.Failure(
                 result.Errors.Select(error => error.Description).ToArray());
     }
+    public async Task<IReadOnlyCollection<string>> GetRolesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(
+            userId.ToString());
 
-   
+        if (user is null)
+            return Array.Empty<string>();
+
+        var roles = await _userManager.GetRolesAsync(user);
+
+        return roles
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .ToArray();
+    }
+
+    public async Task<IdentityOperationResult> SetRolesAsync(
+        Guid userId,
+        IReadOnlyCollection<string> roles,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByIdAsync(
+            userId.ToString());
+
+        if (user is null)
+        {
+            return IdentityOperationResult.Failure(
+                "کاربر پیدا نشد.");
+        }
+
+        var requestedRoles = roles
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var invalidRoles = new List<string>();
+
+        foreach (var roleName in requestedRoles)
+        {
+            var roleExists = await _roleManager.RoleExistsAsync(
+                roleName);
+
+            if (!roleExists)
+                invalidRoles.Add(roleName);
+        }
+
+        if (invalidRoles.Count > 0)
+        {
+            return IdentityOperationResult.Failure(
+                $"Roleهای زیر وجود ندارند: {string.Join(", ", invalidRoles)}");
+        }
+
+        var currentRoles = await _userManager.GetRolesAsync(user);
+
+        var rolesToRemove = currentRoles
+            .Except(
+                requestedRoles,
+                StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var rolesToAdd = requestedRoles
+            .Except(
+                currentRoles,
+                StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (rolesToRemove.Length > 0)
+        {
+            var removeResult = await _userManager.RemoveFromRolesAsync(
+                user,
+                rolesToRemove);
+
+            if (!removeResult.Succeeded)
+            {
+                return IdentityOperationResult.Failure(
+                    removeResult.Errors
+                        .Select(x => x.Description)
+                        .ToArray());
+            }
+        }
+
+        if (rolesToAdd.Length > 0)
+        {
+            var addResult = await _userManager.AddToRolesAsync(
+                user,
+                rolesToAdd);
+
+            if (!addResult.Succeeded)
+            {
+                return IdentityOperationResult.Failure(
+                    addResult.Errors
+                        .Select(x => x.Description)
+                        .ToArray());
+            }
+        }
+
+        return IdentityOperationResult.Success(user.Id);
+    }
+
 }

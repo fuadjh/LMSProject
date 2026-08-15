@@ -52,6 +52,16 @@ public interface IUserAccountService
         Guid userId,
         string roleName,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<string>> GetRolesAsync(
+    Guid userId,
+    CancellationToken cancellationToken = default);
+
+    Task<IdentityOperationResult> SetRolesAsync(
+        Guid userId,
+        IReadOnlyCollection<string> roles,
+        CancellationToken cancellationToken = default);
+
+
 
     Task<IdentityOperationResult> DeleteAsync(
         Guid userId,

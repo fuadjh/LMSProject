@@ -69,7 +69,7 @@ public sealed class UserProfile : BaseEntity
                      .Distinct() ?? [])
         {
             _facultyScopes.Add(
-                UserFacultyScope.Create(Id, facultyId));
+                UserFacultyScope.Create(Id, roleType, facultyId));
         }
     }
 
