@@ -1,5 +1,6 @@
 ﻿using Application.Abstractions.Persistence;
 using Application.Common.Results;
+using Common.Enums;
 using Domain.Entities.Users;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Application.Users.Commands.SetUserScopes;
 
 public sealed class SetUserScopesCommandHandler
-    : IRequestHandler<SetUserScopesCommand, Result<bool>>
+    : IRequestHandler<SetUserScopesCommand, Result>
 {
     private readonly IApplicationDbContext _dbContext;
 
@@ -17,164 +18,183 @@ public sealed class SetUserScopesCommandHandler
         _dbContext = dbContext;
     }
 
-    public async Task<Result<bool>> Handle(
+    public async Task<Result> Handle(
         SetUserScopesCommand request,
         CancellationToken cancellationToken)
     {
         if (request.UserId == Guid.Empty)
         {
-            return Result<bool>.Invalid(
+            return Result.Invalid(
                 "userId",
                 "شناسه کاربر الزامی است.");
         }
 
         if (!Enum.IsDefined(request.RoleType))
         {
-            return Result<bool>.Invalid(
+            return Result.Invalid(
                 "roleType",
                 "نوع نقش کاربر معتبر نیست.");
         }
 
-        var facultyIds = (request.FacultyIds ??
-                          Array.Empty<Guid>())
+        var roleExists =
+            await RoleExistsAsync(
+                request.UserId,
+                request.RoleType,
+                cancellationToken);
+
+        if (!roleExists)
+        {
+            return Result.NotFound(
+                "user.role_not_found",
+                "نقش مورد نظر برای این کاربر یافت نشد.");
+        }
+
+        var facultyIds =
+            (request.FacultyIds ?? Array.Empty<Guid>())
             .Where(id => id != Guid.Empty)
             .Distinct()
             .ToArray();
 
-        var majorIds = (request.MajorIds ??
-                        Array.Empty<Guid>())
+        var majorIds =
+            (request.MajorIds ?? Array.Empty<Guid>())
             .Where(id => id != Guid.Empty)
             .Distinct()
             .ToArray();
 
-        var userExists =
-            await _dbContext.UserProfiles
+        var validFacultyIds =
+            await _dbContext.Faculties
                 .AsNoTracking()
-                .AnyAsync(
-                    profile => profile.Id == request.UserId,
-                    cancellationToken);
+                .Where(faculty =>
+                    facultyIds.Contains(faculty.Id) &&
+                    faculty.IsActive)
+                .Select(faculty => faculty.Id)
+                .ToArrayAsync(cancellationToken);
 
-        if (!userExists)
+        if (facultyIds.Except(validFacultyIds).Any())
         {
-            return Result<bool>.NotFound(
-                "user.not_found",
-                "کاربر مورد نظر یافت نشد.");
+            return Result.Invalid(
+                "facultyIds",
+                "یک یا چند دانشکده معتبر یا فعال نیست.");
         }
 
-        if (facultyIds.Length > 0)
+        var validMajors =
+            await _dbContext.Majors
+                .AsNoTracking()
+                .Where(major =>
+                    majorIds.Contains(major.Id) &&
+                    major.IsActive)
+                .Select(major => new
+                {
+                    major.Id,
+                    major.FacultyId
+                })
+                .ToArrayAsync(cancellationToken);
+
+        if (majorIds
+            .Except(validMajors.Select(major => major.Id))
+            .Any())
         {
-            var validFacultyIds =
-                await _dbContext.Faculties
-                    .AsNoTracking()
-                    .Where(faculty =>
-                        facultyIds.Contains(faculty.Id) &&
-                        faculty.IsActive)
-                    .Select(faculty => faculty.Id)
-                    .ToArrayAsync(cancellationToken);
-
-            var invalidFacultyIds =
-                facultyIds.Except(validFacultyIds).ToArray();
-
-            if (invalidFacultyIds.Length > 0)
-            {
-                return Result<bool>.Invalid(
-                    "facultyIds",
-                    "یک یا چند دانشکده انتخاب‌شده معتبر یا فعال نیست.");
-            }
+            return Result.Invalid(
+                "majorIds",
+                "یک یا چند رشته معتبر یا فعال نیست.");
         }
 
-        if (majorIds.Length > 0)
+        var invalidMajorFaculty =
+            validMajors.Any(major =>
+                !facultyIds.Contains(major.FacultyId));
+
+        if (invalidMajorFaculty)
         {
-            var validMajors =
-                await _dbContext.Majors
-                    .AsNoTracking()
-                    .Where(major =>
-                        majorIds.Contains(major.Id) &&
-                        major.IsActive)
-                    .Select(major => new
-                    {
-                        major.Id,
-                        major.FacultyId
-                    })
-                    .ToArrayAsync(cancellationToken);
-
-            var invalidMajorIds =
-                majorIds
-                    .Except(validMajors.Select(major => major.Id))
-                    .ToArray();
-
-            if (invalidMajorIds.Length > 0)
-            {
-                return Result<bool>.Invalid(
-                    "majorIds",
-                    "یک یا چند رشته انتخاب‌شده معتبر یا فعال نیست.");
-            }
-
-            var hasFacultyMismatch =
-                validMajors.Any(major =>
-                    !facultyIds.Contains(major.FacultyId));
-
-            if (hasFacultyMismatch)
-            {
-                return Result<bool>.Invalid(
-                    "majorIds",
-                    "دانشکده مربوط به تمام رشته‌های انتخاب‌شده باید در محدوده دانشکده‌های کاربر قرار داشته باشد.");
-            }
+            return Result.Invalid(
+                "majorIds",
+                "دانشکده مربوط به رشته‌های انتخاب‌شده در محدوده دانشکده‌های کاربر نیست.");
         }
 
-        var existingFacultyScopes =
+        var oldFacultyScopes =
             await _dbContext.UserFacultyScopes
                 .Where(scope =>
                     scope.UserId == request.UserId &&
                     scope.RoleType == request.RoleType)
                 .ToListAsync(cancellationToken);
 
-        var existingMajorScopes =
+        var oldMajorScopes =
             await _dbContext.UserMajorScopes
                 .Where(scope =>
                     scope.UserId == request.UserId &&
                     scope.RoleType == request.RoleType)
                 .ToListAsync(cancellationToken);
 
-        foreach (var facultyScope in existingFacultyScopes)
+        foreach (var scope in oldFacultyScopes)
         {
-            _dbContext.Remove(facultyScope);
+            _dbContext.Remove(scope);
         }
 
-        foreach (var majorScope in existingMajorScopes)
+        foreach (var scope in oldMajorScopes)
         {
-            _dbContext.Remove(majorScope);
+            _dbContext.Remove(scope);
         }
 
-        foreach (var facultyId in facultyIds)
+        foreach (var facultyId in validFacultyIds)
         {
-            var facultyScope =
+            var scope =
                 UserFacultyScope.Create(
                     request.UserId,
                     request.RoleType,
                     facultyId);
 
             await _dbContext.AddAsync(
-                facultyScope,
+                scope,
                 cancellationToken);
         }
 
-        foreach (var majorId in majorIds)
+        foreach (var major in validMajors)
         {
-            var majorScope =
+            var scope =
                 UserMajorScope.Create(
                     request.UserId,
                     request.RoleType,
-                    majorId);
+                    major.Id);
 
             await _dbContext.AddAsync(
-                majorScope,
+                scope,
                 cancellationToken);
         }
 
         await _dbContext.SaveChangesAsync(
             cancellationToken);
 
-        return Result<bool>.Success(true);
+        return Result.Success();
+    }
+
+    private Task<bool> RoleExistsAsync(
+        Guid userId,
+        UserRoleType roleType,
+        CancellationToken cancellationToken)
+    {
+        return roleType switch
+        {
+            UserRoleType.Student =>
+                _dbContext.StudentProfiles
+                    .AsNoTracking()
+                    .AnyAsync(
+                        profile => profile.Id == userId,
+                        cancellationToken),
+
+            UserRoleType.Instructor =>
+                _dbContext.InstructorProfiles
+                    .AsNoTracking()
+                    .AnyAsync(
+                        profile => profile.Id == userId,
+                        cancellationToken),
+
+            UserRoleType.Expert =>
+                _dbContext.ExpertProfiles
+                    .AsNoTracking()
+                    .AnyAsync(
+                        profile => profile.Id == userId,
+                        cancellationToken),
+
+            _ => Task.FromResult(false)
+        };
     }
 }

@@ -54,7 +54,7 @@ public sealed class IdentityService : IIdentityService
             UserName = userName.Trim(),
             Email = email.Trim(),
             EmailConfirmed = true,
-            IsActive = true
+            
         };
 
         var createResult = await _userManager.CreateAsync(
@@ -378,7 +378,7 @@ public sealed class IdentityService : IIdentityService
         if (user.IsActive == isActive)
             return;
 
-        user.IsActive = isActive;
+        user.Activate();
 
         var result = await _userManager.UpdateAsync(user);
 

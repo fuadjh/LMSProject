@@ -6,11 +6,11 @@ namespace WebApi.Controllers;
 
 [ApiController]
 [Route("api/education-experts")]
-public sealed class EducationExpertsController : ControllerBase
+public sealed class ExpertsController : ControllerBase
 {
     private readonly ISender _sender;
 
-    public EducationExpertsController(ISender sender)
+    public ExpertsController(ISender sender)
     {
         _sender = sender;
     }

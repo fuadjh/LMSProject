@@ -66,7 +66,7 @@ public sealed class LearningAccessService
             return true;
         }
 
-        if (IsInRole(RoleNames.EducationExpert) &&
+        if (IsInRole(RoleNames.Expert) &&
             _currentUser.UserId.HasValue)
         {
             var majorId = await (

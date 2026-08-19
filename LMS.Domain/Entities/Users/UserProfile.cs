@@ -4,14 +4,13 @@ namespace Domain.Entities.Users;
 
 public sealed class UserProfile : BaseEntity
 {
-    private readonly List<UserFacultyScope> _facultyScopes = [];
-    private readonly List<UserMajorScope> _majorScopes = [];
-
     private UserProfile()
     {
     }
 
     public Guid AuthUserId { get; private set; }
+
+    public string? NationalCode { get; private set; }
 
     public string FirstName { get; private set; } = string.Empty;
 
@@ -19,22 +18,50 @@ public sealed class UserProfile : BaseEntity
 
     public bool IsActive { get; private set; }
 
-    public IReadOnlyCollection<UserFacultyScope> FacultyScopes =>
-        _facultyScopes.AsReadOnly();
-
-    public IReadOnlyCollection<UserMajorScope> MajorScopes =>
-        _majorScopes.AsReadOnly();
+    // سازگاری با کدهای قدیمی پروژه
+    public bool Active => IsActive;
 
     public static UserProfile Create(
         Guid authUserId,
         string firstName,
-        string lastName)
+        string lastName,
+        string? nationalCode = null)
     {
         if (authUserId == Guid.Empty)
-            throw new ArgumentException("شناسه کاربر الزامی است.", nameof(authUserId));
+        {
+            throw new ArgumentException(
+                "شناسه حساب کاربری الزامی است.",
+                nameof(authUserId));
+        }
 
-        ValidateName(firstName, nameof(firstName));
-        ValidateName(lastName, nameof(lastName));
+        if (string.IsNullOrWhiteSpace(firstName))
+        {
+            throw new ArgumentException(
+                "نام الزامی است.",
+                nameof(firstName));
+        }
+
+        if (string.IsNullOrWhiteSpace(lastName))
+        {
+            throw new ArgumentException(
+                "نام خانوادگی الزامی است.",
+                nameof(lastName));
+        }
+
+        string? normalizedNationalCode = null;
+
+        if (!string.IsNullOrWhiteSpace(nationalCode))
+        {
+            normalizedNationalCode =
+                NormalizeNationalCode(nationalCode);
+
+            if (!IsValidNationalCode(normalizedNationalCode))
+            {
+                throw new ArgumentException(
+                    "کد ملی معتبر نیست.",
+                    nameof(nationalCode));
+            }
+        }
 
         return new UserProfile
         {
@@ -42,56 +69,120 @@ public sealed class UserProfile : BaseEntity
             AuthUserId = authUserId,
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
+            NationalCode = normalizedNationalCode,
             IsActive = true
         };
     }
 
-    public void UpdateName(string firstName, string lastName)
+    public void UpdateName(
+        string firstName,
+        string lastName)
     {
-        ValidateName(firstName, nameof(firstName));
-        ValidateName(lastName, nameof(lastName));
+        if (string.IsNullOrWhiteSpace(firstName))
+        {
+            throw new ArgumentException(
+                "نام الزامی است.",
+                nameof(firstName));
+        }
+
+        if (string.IsNullOrWhiteSpace(lastName))
+        {
+            throw new ArgumentException(
+                "نام خانوادگی الزامی است.",
+                nameof(lastName));
+        }
 
         FirstName = firstName.Trim();
         LastName = lastName.Trim();
     }
 
-    public void SetActive(bool isActive)
+    public void Activate()
     {
-        IsActive = isActive;
+        IsActive = true;
     }
 
-    public void SetFacultyScopes(IEnumerable<Guid>? facultyIds)
+    public void Deactivate()
     {
-        _facultyScopes.Clear();
-
-        foreach (var facultyId in facultyIds?
-                     .Where(x => x != Guid.Empty)
-                     .Distinct() ?? [])
-        {
-            _facultyScopes.Add(
-                UserFacultyScope.Create(Id, roleType, facultyId));
-        }
+        IsActive = false;
     }
 
-    public void SetMajorScopes(IEnumerable<Guid>? majorIds)
-    {
-        _majorScopes.Clear();
-
-        foreach (var majorId in majorIds?
-                     .Where(x => x != Guid.Empty)
-                     .Distinct() ?? [])
-        {
-            _majorScopes.Add(
-                UserMajorScope.Create(Id, majorId));
-        }
-    }
-
-    private static void ValidateName(string value, string parameterName)
+    public static string NormalizeNationalCode(
+        string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("نام و نام خانوادگی الزامی است.", parameterName);
+        {
+            return string.Empty;
+        }
 
-        if (value.Trim().Length > 100)
-            throw new ArgumentException("حداکثر طول نام ۱۰۰ کاراکتر است.", parameterName);
+        var normalizedCharacters = value
+            .Trim()
+            .Where(character =>
+                !char.IsWhiteSpace(character) &&
+                character != '-')
+            .Select(NormalizeDigit)
+            .ToArray();
+
+        return new string(normalizedCharacters);
+    }
+
+    public static bool IsValidNationalCode(
+        string? value)
+    {
+        var nationalCode =
+            NormalizeNationalCode(value ?? string.Empty);
+
+        if (nationalCode.Length != 10)
+        {
+            return false;
+        }
+
+        if (nationalCode.Any(character =>
+                character is < '0' or > '9'))
+        {
+            return false;
+        }
+
+        if (nationalCode.Distinct().Count() == 1)
+        {
+            return false;
+        }
+
+        var sum = 0;
+
+        for (var index = 0; index < 9; index++)
+        {
+            sum +=
+                (nationalCode[index] - '0') *
+                (10 - index);
+        }
+
+        var remainder = sum % 11;
+
+        var expectedCheckDigit =
+            remainder < 2
+                ? remainder
+                : 11 - remainder;
+
+        return nationalCode[9] - '0' ==
+               expectedCheckDigit;
+    }
+
+    private static char NormalizeDigit(
+        char value)
+    {
+        return value switch
+        {
+            '۰' or '٠' => '0',
+            '۱' or '١' => '1',
+            '۲' or '٢' => '2',
+            '۳' or '٣' => '3',
+            '۴' or '٤' => '4',
+            '۵' or '٥' => '5',
+            '۶' or '٦' => '6',
+            '۷' or '٧' => '7',
+            '۸' or '٨' => '8',
+            '۹' or '٩' => '9',
+            _ => value
+        };
     }
 }

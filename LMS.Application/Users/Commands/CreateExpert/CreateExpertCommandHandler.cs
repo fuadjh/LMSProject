@@ -11,7 +11,7 @@ namespace Application.Users.Commands.CreateExpert;
 public sealed class CreateExpertCommandHandler
     : IRequestHandler<CreateExpertCommand, IdentityOperationResult>
 {
-    private const string RoleName = "EducationExpert";
+    private const string RoleName = "Expert";
 
     private readonly IApplicationDbContext _context;
     private readonly IUserAccountService _accounts;

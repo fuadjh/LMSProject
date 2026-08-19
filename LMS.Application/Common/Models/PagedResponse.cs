@@ -2,6 +2,12 @@
 
 public sealed record PagedResponse<T>(
     IReadOnlyCollection<T> Items,
-    int Page,
-    int PageSize,
-    int TotalCount);
+    int TotalCount,
+    int PageNumber,
+    int PageSize)
+{
+    public int TotalPages =>
+        PageSize <= 0
+            ? 0
+            : (int)Math.Ceiling(TotalCount / (double)PageSize);
+}

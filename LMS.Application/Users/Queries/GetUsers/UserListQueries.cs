@@ -14,7 +14,7 @@ public sealed record GetInstructorsQuery
     : PagedQuery,
       IRequest<Result<PagedResponse<UserListItemDto>>>;
 
-public sealed record GetEducationExpertsQuery
+public sealed record GetExpertsQuery
     : PagedQuery,
       IRequest<Result<PagedResponse<UserListItemDto>>>;
 
@@ -26,7 +26,7 @@ public sealed class UserListQueryHandler :
         GetInstructorsQuery,
         Result<PagedResponse<UserListItemDto>>>,
     IRequestHandler<
-        GetEducationExpertsQuery,
+        GetExpertsQuery,
         Result<PagedResponse<UserListItemDto>>>
 {
     private readonly IUserAdminReadService _readService;
@@ -58,7 +58,7 @@ public sealed class UserListQueryHandler :
     }
 
     public async Task<Result<PagedResponse<UserListItemDto>>> Handle(
-        GetEducationExpertsQuery request,
+        GetExpertsQuery request,
         CancellationToken cancellationToken)
     {
         return await GetResultAsync(

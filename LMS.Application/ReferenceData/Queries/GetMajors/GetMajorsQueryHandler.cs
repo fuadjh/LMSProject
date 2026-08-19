@@ -112,6 +112,8 @@ public sealed class GetMajorsQueryHandler
         return Result<PagedResponse<MajorListItemDto>>.Success(
             new PagedResponse<MajorListItemDto>(
                 items,
-                totalCount));
+                totalCount, pageNumber,
+        pageSize));
+        
     }
 }

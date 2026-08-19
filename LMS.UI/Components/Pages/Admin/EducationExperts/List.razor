@@ -2,12 +2,12 @@
 @using Common.Security
 @using WebUi.Components.Pages.Admin.Users
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(
-    Policy = Permissions.EducationExperts.View)]
+    Policy = Permissions.Experts.View)]
 
 <PageTitle>مدیریت کارشناسان آموزش</PageTitle>
 
-<UserManagementPage roleType="UserRoleTypeVm.EducationExpert"
+<UserManagementPage roleType="UserRoleTypeVm.Expert"
                     Title="مدیریت کارشناسان آموزش"
                     CreateRoute="/admin/education-experts/create"
-                    CreatePermission="@Permissions.EducationExperts.Create"
-                    EditPermission="@Permissions.EducationExperts.Edit" />
+                    CreatePermission="@Permissions.Experts.Create"
+                    EditPermission="@Permissions.Experts.Edit" />

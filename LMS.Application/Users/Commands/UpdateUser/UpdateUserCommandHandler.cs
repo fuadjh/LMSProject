@@ -71,9 +71,8 @@ public sealed class UpdateUserCommandHandler(
                 request.FirstName,
                 request.LastName);
 
-            userProfile.SetActive(request.IsActive);
-            userProfile.SetFacultyScopes(request.FacultyScopeIds);
-            userProfile.SetMajorScopes(request.MajorScopeIds);
+            userProfile.Activate();
+           
 
             switch (request.Role)
             {
@@ -110,7 +109,7 @@ public sealed class UpdateUserCommandHandler(
                         break;
                     }
 
-                case UserRoleType.EducationExpert:
+                case UserRoleType.Expert:
                     {
                         var exists = await dbContext.ExpertProfiles
                             .AnyAsync(

@@ -81,7 +81,7 @@ public sealed class ReferenceDataReadService : IReferenceDataReadService
 
         return new PagedResponse<UniversityListItemDto>(
             items,
-            totalCount);
+            totalCount, pageNumber, pageSize);
     }
 
     private static IQueryable<University> ApplyUniversitySorting(

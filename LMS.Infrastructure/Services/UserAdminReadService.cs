@@ -3,6 +3,7 @@ using Application.Common.Models;
 using Common.Enums;
 using Common.Security;
 using Common.Validation;
+using Domain.Entities.Users;
 using Infrastructure.Identity;
 using Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -10,350 +11,542 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Services;
 
-public sealed class UserAdminReadService(
-    LmsDbContext dbContext,
-    UserManager<ApplicationUser> userManager,
-    RoleManager<ApplicationRole> roleManager)
+public sealed class UserAdminReadService
     : IUserAdminReadService
 {
-    public async Task<PagedResponse<UserProfileListItemDto>> GetUsersAsync(
-        UserRoleType role,
+    private readonly LmsDbContext _dbContext;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly RoleManager<ApplicationRole> _roleManager;
+
+    public UserAdminReadService(
+        LmsDbContext dbContext,
+        UserManager<ApplicationUser> userManager,
+        RoleManager<ApplicationRole> roleManager)
+    {
+        _dbContext = dbContext;
+        _userManager = userManager;
+        _roleManager = roleManager;
+    }
+
+    public async Task<PagedResponse<UserListItemDto>> GetUsersAsync(
+        UserRoleType roleType,
         string? search,
-        int page,
+        int pageNumber,
         int pageSize,
         string? sortBy,
-        bool descending,
+        bool sortDescending,
         CancellationToken cancellationToken = default)
     {
-        page = Math.Max(page, 1);
+        pageNumber = Math.Max(pageNumber, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var roleName = GetRoleName(role);
-        var normalizedRoleName = roleName.ToUpperInvariant();
-
-        var roleIdQuery = dbContext.Roles
-            .Where(x => x.NormalizedName == normalizedRoleName)
-            .Select(x => x.Id);
-
-        var roleUserIds = dbContext.UserRoles
-            .Where(x => roleIdQuery.Contains(x.RoleId))
-            .Select(x => x.UserId);
-
-        var query =
-            from user in dbContext.Users.AsNoTracking()
-            join profile in dbContext.UserProfiles.AsNoTracking()
-                on user.Id equals profile.AuthUserId
-            where roleUserIds.Contains(user.Id)
-            select new
-            {
-                User = user,
-                Profile = profile
-            };
+        var query = BuildUsersQuery(roleType);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var value = search.Trim();
 
-            query = query.Where(x =>
-                x.User.UserName!.Contains(value) ||
-                x.User.NationalCode.Contains(value) ||
-                x.User.PhoneNumber!.Contains(value) ||
-                x.Profile.FirstName.Contains(value) ||
-                x.Profile.LastName.Contains(value));
+            query = query.Where(item =>
+                item.UserName.Contains(value) ||
+                item.FirstName.Contains(value) ||
+                item.LastName.Contains(value) ||
+                item.FullName.Contains(value) ||
+                item.NationalCode.Contains(value) ||
+                (item.PhoneNumber != null &&
+                 item.PhoneNumber.Contains(value)) ||
+                (item.Email != null &&
+                 item.Email.Contains(value)) ||
+                (item.RoleIdentifier != null &&
+                 item.RoleIdentifier.Contains(value)) ||
+                (item.MajorTitle != null &&
+                 item.MajorTitle.Contains(value)));
         }
-
-        query = (sortBy?.ToLowerInvariant(), descending) switch
-        {
-            ("username", true) =>
-                query.OrderByDescending(x => x.User.UserName),
-
-            ("username", false) =>
-                query.OrderBy(x => x.User.UserName),
-
-            ("nationalcode", true) =>
-                query.OrderByDescending(x => x.User.NationalCode),
-
-            ("nationalcode", false) =>
-                query.OrderBy(x => x.User.NationalCode),
-
-            (_, true) =>
-                query.OrderByDescending(x => x.Profile.FirstName)
-                    .ThenByDescending(x => x.Profile.LastName),
-
-            _ =>
-                query.OrderBy(x => x.Profile.FirstName)
-                    .ThenBy(x => x.Profile.LastName)
-        };
 
         var totalCount =
             await query.CountAsync(cancellationToken);
 
-        var rows = await query
-            .Skip((page - 1) * pageSize)
+        query = ApplySort(
+            query,
+            sortBy,
+            sortDescending);
+
+        var items = await query
+            .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .Select(x => new UserProfileListItemDto(
-                x.User.Id,
-                x.Profile.Id,
-                x.User.UserName ?? string.Empty,
-                x.Profile.FirstName + " " + x.Profile.LastName,
-                x.User.NationalCode,
-                x.User.PhoneNumber ?? string.Empty,
-                role,
-                x.User.IsActive && x.Profile.IsActive,
-                role == UserRoleType.Student
-                    ? dbContext.StudentProfiles
-                        .Where(p => p.UserProfileId == x.Profile.Id)
-                        .Select(p => p.StudentNumber)
-                        .FirstOrDefault()
-                    : null,
-                role == UserRoleType.Instructor
-                    ? dbContext.InstructorProfiles
-                        .Where(p => p.UserProfileId == x.Profile.Id)
-                        .Select(p => p.PersonnelCode)
-                        .FirstOrDefault()
-                    : null))
             .ToListAsync(cancellationToken);
 
-        return new PagedResponse<UserProfileListItemDto>(
-            rows,
-            page,
-            pageSize,
-            totalCount);
+        return new PagedResponse<UserListItemDto>(
+            items,
+            totalCount, pageNumber, pageSize);
     }
 
-    public async Task<UserProfileDetailsDto?> GetUserDetailsAsync(
+    public async Task<UserDetailsDto?> GetUserDetailsAsync(
         Guid userId,
-        UserRoleType role,
+        UserRoleType roleType,
         CancellationToken cancellationToken = default)
     {
-        var data = await (
-            from user in dbContext.Users.AsNoTracking()
-            join profile in dbContext.UserProfiles.AsNoTracking()
-                on user.Id equals profile.AuthUserId
-            where user.Id == userId
-            select new
-            {
-                User = user,
-                Profile = profile
-            })
-            .SingleOrDefaultAsync(cancellationToken);
-
-        if (data is null)
+        if (userId == Guid.Empty ||
+            !Enum.IsDefined(roleType))
+        {
             return null;
-
-        string? studentNumber = null;
-        Guid? studentMajorId = null;
-        string? personnelCode = null;
-
-        if (role == UserRoleType.Student)
-        {
-            var student = await dbContext.StudentProfiles
-                .AsNoTracking()
-                .Where(x => x.UserProfileId == data.Profile.Id)
-                .Select(x => new
-                {
-                    x.StudentNumber,
-                    x.MajorId
-                })
-                .SingleOrDefaultAsync(cancellationToken);
-
-            studentNumber = student?.StudentNumber;
-            studentMajorId = student?.MajorId;
         }
 
-        if (role == UserRoleType.Instructor)
+        var user = await _dbContext.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.Id == userId,
+                cancellationToken);
+
+        if (user is null)
         {
-            personnelCode = await dbContext.InstructorProfiles
-                .AsNoTracking()
-                .Where(x => x.UserProfileId == data.Profile.Id)
-                .Select(x => x.PersonnelCode)
-                .SingleOrDefaultAsync(cancellationToken);
+            return null;
         }
 
-        var facultyIds = await dbContext
-            .Set<Domain.Entities.Users.UserFacultyScope>()
-            .AsNoTracking()
-            .Where(x => x.UserProfileId == data.Profile.Id)
-            .Select(x => x.FacultyId)
-            .ToListAsync(cancellationToken);
+        var roleData = await GetRoleDataAsync(
+            userId,
+            roleType,
+            cancellationToken);
 
-        var majorIds = await dbContext
-            .Set<Domain.Entities.Users.UserMajorScope>()
-            .AsNoTracking()
-            .Where(x => x.UserProfileId == data.Profile.Id)
-            .Select(x => x.MajorId)
-            .ToListAsync(cancellationToken);
+        if (roleData is null)
+        {
+            return null;
+        }
 
-        return new UserProfileDetailsDto(
-            data.User.Id,
-            data.Profile.Id,
-            data.User.UserName ?? string.Empty,
-            data.Profile.FirstName,
-            data.Profile.LastName,
-            data.User.NationalCode,
-            data.User.PhoneNumber ?? string.Empty,
-            data.User.Email,
-            data.User.LatinFirstName,
-            data.User.LatinLastName,
-            data.User.Gender,
-            data.User.ProfileImagePath,
-            data.User.IsActive && data.Profile.IsActive,
-            role,
-            studentNumber,
-            studentMajorId,
-            personnelCode,
-            facultyIds,
-            majorIds);
+        var facultyScopeIds =
+            await _dbContext
+                .Set<UserFacultyScope>()
+                .AsNoTracking()
+                .Where(scope =>
+                    scope.UserId == userId &&
+                    scope.RoleType == roleType)
+                .Select(scope => scope.FacultyId)
+                .Distinct()
+                .ToArrayAsync(cancellationToken);
+
+        var majorScopeIds =
+            await _dbContext
+                .Set<UserMajorScope>()
+                .AsNoTracking()
+                .Where(scope =>
+                    scope.UserId == userId &&
+                    scope.RoleType == roleType)
+                .Select(scope => scope.MajorId)
+                .Distinct()
+                .ToArrayAsync(cancellationToken);
+
+        var security = await GetSecurityDataAsync(userId);
+
+        return new UserDetailsDto(
+            user.Id,
+            roleType,
+            user.UserName ?? string.Empty,
+            user.FirstName,
+            user.LastName,
+            user.NationalCode,
+            user.PhoneNumber,
+            user.Email,
+            user.LatinFirstName,
+            user.LatinLastName,
+            user.Gender,
+            user.ProfileImagePath,
+            user.IsActive,
+            roleData.RoleIsActive,
+            roleData.RoleIdentifier,
+            roleData.FacultyId,
+            roleData.MajorId,
+            roleData.MajorTitle,
+            facultyScopeIds,
+            majorScopeIds,
+            security.Roles,
+            security.Permissions);
     }
 
-    public async Task<UserByNationalCodeDto?> GetUserByNationalCodeAsync(
-        string nationalCode,
-        CancellationToken cancellationToken = default)
+    public async Task<UserAccessDetailsDto?>
+        GetUserAccessDetailsAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
     {
-        var normalized =
-            IranianIdentityNormalizer.NormalizeNationalCode(nationalCode);
+        if (userId == Guid.Empty)
+        {
+            return null;
+        }
 
-        return await (
-            from user in dbContext.Users.AsNoTracking()
-            join profile in dbContext.UserProfiles.AsNoTracking()
-                on user.Id equals profile.AuthUserId
-            where user.NationalCode == normalized
-            select new UserByNationalCodeDto(
+        var user = await _dbContext.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.Id == userId,
+                cancellationToken);
+
+        if (user is null)
+        {
+            return null;
+        }
+
+        var facultyScopeIds =
+            await _dbContext
+                .Set<UserFacultyScope>()
+                .AsNoTracking()
+                .Where(scope => scope.UserId == userId)
+                .Select(scope => scope.FacultyId)
+                .Distinct()
+                .ToArrayAsync(cancellationToken);
+
+        var majorScopeIds =
+            await _dbContext
+                .Set<UserMajorScope>()
+                .AsNoTracking()
+                .Where(scope => scope.UserId == userId)
+                .Select(scope => scope.MajorId)
+                .Distinct()
+                .ToArrayAsync(cancellationToken);
+
+        var security = await GetSecurityDataAsync(userId);
+
+        return new UserAccessDetailsDto(
+            user.Id,
+            user.UserName ?? string.Empty,
+            $"{user.FirstName} {user.LastName}".Trim(),
+            user.IsActive,
+            security.Roles,
+            security.Permissions,
+            facultyScopeIds,
+            majorScopeIds);
+    }
+
+    public async Task<IReadOnlyCollection<UserLookupDto>>
+        SearchUsersAsync(
+            string? search,
+            CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.Users
+            .AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var value = search.Trim();
+
+            query = query.Where(user =>
+                (user.UserName != null &&
+                 user.UserName.Contains(value)) ||
+                user.FirstName.Contains(value) ||
+                user.LastName.Contains(value) ||
+                user.NationalCode.Contains(value) ||
+                (user.PhoneNumber != null &&
+                 user.PhoneNumber.Contains(value)) ||
+                (user.Email != null &&
+                 user.Email.Contains(value)));
+        }
+
+        return await query
+            .OrderBy(user => user.FirstName)
+            .ThenBy(user => user.LastName)
+            .Take(50)
+            .Select(user => new UserLookupDto(
                 user.Id,
                 user.UserName ?? string.Empty,
-                profile.FirstName,
-                profile.LastName,
+                (user.FirstName + " " + user.LastName).Trim(),
+                user.NationalCode,
+                user.PhoneNumber))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<UserByNationalCodeDto?>
+        GetUserByNationalCodeAsync(
+            string nationalCode,
+            CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(nationalCode))
+        {
+            return null;
+        }
+
+        var normalizedNationalCode =
+            IranianIdentityNormalizer.NormalizeNationalCode(
+                nationalCode);
+
+        return await _dbContext.Users
+            .AsNoTracking()
+            .Where(user =>
+                user.NationalCode == normalizedNationalCode)
+            .Select(user => new UserByNationalCodeDto(
+                user.Id,
+                user.UserName ?? string.Empty,
+                user.FirstName,
+                user.LastName,
                 user.NationalCode,
                 user.PhoneNumber,
                 user.Email,
-                user.IsActive && profile.IsActive,
-                dbContext.StudentProfiles.Any(
-                    x => x.UserProfileId == profile.Id),
-                dbContext.InstructorProfiles.Any(
-                    x => x.UserProfileId == profile.Id),
-                dbContext.ExpertProfiles.Any(
-                    x => x.UserProfileId == profile.Id)))
+                user.IsActive,
+                _dbContext.StudentProfiles.Any(
+                    profile => profile.Id == user.Id),
+                _dbContext.InstructorProfiles.Any(
+                    profile => profile.Id == user.Id),
+                _dbContext.ExpertProfiles.Any(
+                    profile => profile.Id == user.Id)))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<UserAccessDetailsDto?> GetUserAccessDetailsAsync(
-        Guid userId,
-        CancellationToken cancellationToken = default)
+    private IQueryable<UserListItemDto> BuildUsersQuery(
+        UserRoleType roleType)
     {
-        var data = await (
-            from user in dbContext.Users.AsNoTracking()
-            join profile in dbContext.UserProfiles.AsNoTracking()
-                on user.Id equals profile.AuthUserId
-            where user.Id == userId
-            select new
-            {
-                User = user,
-                Profile = profile
-            })
-            .SingleOrDefaultAsync(cancellationToken);
+        return roleType switch
+        {
+            UserRoleType.Student => BuildStudentsQuery(),
 
-        if (data is null)
-            return null;
+            UserRoleType.Instructor => BuildInstructorsQuery(),
 
-        var identityUser =
-            await userManager.FindByIdAsync(userId.ToString());
+            UserRoleType.Expert => BuildExpertsQuery(),
 
-        if (identityUser is null)
-            return null;
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(roleType),
+                roleType,
+                "نوع کاربر معتبر نیست.")
+        };
+    }
 
-        var roles = await userManager.GetRolesAsync(identityUser);
+    private IQueryable<UserListItemDto> BuildStudentsQuery()
+    {
+        return
+            from user in _dbContext.Users.AsNoTracking()
+            join student in
+                _dbContext.StudentProfiles.AsNoTracking()
+                on user.Id equals student.Id
+            join major in
+                _dbContext.Majors.AsNoTracking()
+                on student.MajorId equals major.Id
+            select new UserListItemDto(
+                user.Id,
+                UserRoleType.Student,
+                user.UserName ?? string.Empty,
+                user.FirstName,
+                user.LastName,
+                user.FirstName + " " + user.LastName,
+                user.NationalCode,
+                user.PhoneNumber,
+                user.Email,
+                user.IsActive,
+                student.IsActive,
+                student.StudentNumber,
+                major.FacultyId,
+                major.Id,
+                major.Title);
+    }
+
+    private IQueryable<UserListItemDto> BuildInstructorsQuery()
+    {
+        return
+            from user in _dbContext.Users.AsNoTracking()
+            join instructor in
+                _dbContext.InstructorProfiles.AsNoTracking()
+                on user.Id equals instructor.Id
+            select new UserListItemDto(
+                user.Id,
+                UserRoleType.Instructor,
+                user.UserName ?? string.Empty,
+                user.FirstName,
+                user.LastName,
+                user.FirstName + " " + user.LastName,
+                user.NationalCode,
+                user.PhoneNumber,
+                user.Email,
+                user.IsActive,
+                instructor.IsActive,
+                instructor.PersonnelCode,
+                null,
+                null,
+                null);
+    }
+
+    private IQueryable<UserListItemDto> BuildExpertsQuery()
+    {
+        return
+            from user in _dbContext.Users.AsNoTracking()
+            join expert in
+                _dbContext.ExpertProfiles.AsNoTracking()
+                on user.Id equals expert.Id
+            select new UserListItemDto(
+                user.Id,
+                UserRoleType.Expert,
+                user.UserName ?? string.Empty,
+                user.FirstName,
+                user.LastName,
+                user.FirstName + " " + user.LastName,
+                user.NationalCode,
+                user.PhoneNumber,
+                user.Email,
+                user.IsActive,
+                expert.IsActive,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    private static IQueryable<UserListItemDto> ApplySort(
+        IQueryable<UserListItemDto> query,
+        string? sortBy,
+        bool descending)
+    {
+        var normalizedSort = sortBy?
+            .Trim()
+            .ToLowerInvariant();
+
+        return (normalizedSort, descending) switch
+        {
+            ("username", true) =>
+                query.OrderByDescending(item => item.UserName),
+
+            ("username", false) =>
+                query.OrderBy(item => item.UserName),
+
+            ("nationalcode", true) =>
+                query.OrderByDescending(item => item.NationalCode),
+
+            ("nationalcode", false) =>
+                query.OrderBy(item => item.NationalCode),
+
+            ("identifier", true) =>
+                query.OrderByDescending(item => item.RoleIdentifier),
+
+            ("identifier", false) =>
+                query.OrderBy(item => item.RoleIdentifier),
+
+            ("major", true) =>
+                query.OrderByDescending(item => item.MajorTitle),
+
+            ("major", false) =>
+                query.OrderBy(item => item.MajorTitle),
+
+            ("fullname", true) =>
+                query.OrderByDescending(item => item.FullName),
+
+            ("fullname", false) =>
+                query.OrderBy(item => item.FullName),
+
+            (_, true) =>
+                query.OrderByDescending(item => item.LastName)
+                    .ThenByDescending(item => item.FirstName),
+
+            _ =>
+                query.OrderBy(item => item.LastName)
+                    .ThenBy(item => item.FirstName)
+        };
+    }
+
+    private async Task<UserRoleReadData?> GetRoleDataAsync(
+        Guid userId,
+        UserRoleType roleType,
+        CancellationToken cancellationToken)
+    {
+        switch (roleType)
+        {
+            case UserRoleType.Student:
+                {
+                    return await (
+                        from student in
+                            _dbContext.StudentProfiles.AsNoTracking()
+                        join major in
+                            _dbContext.Majors.AsNoTracking()
+                            on student.MajorId equals major.Id
+                        where student.Id == userId
+                        select new UserRoleReadData(
+                            student.IsActive,
+                            student.StudentNumber,
+                            major.FacultyId,
+                            major.Id,
+                            major.Title))
+                        .SingleOrDefaultAsync(cancellationToken);
+                }
+
+            case UserRoleType.Instructor:
+                {
+                    return await _dbContext.InstructorProfiles
+                        .AsNoTracking()
+                        .Where(profile => profile.Id == userId)
+                        .Select(profile => new UserRoleReadData(
+                            profile.IsActive,
+                            profile.PersonnelCode,
+                            null,
+                            null,
+                            null))
+                        .SingleOrDefaultAsync(cancellationToken);
+                }
+
+            case UserRoleType.Expert:
+                {
+                    return await _dbContext.ExpertProfiles
+                        .AsNoTracking()
+                        .Where(profile => profile.Id == userId)
+                        .Select(profile => new UserRoleReadData(
+                            profile.IsActive,
+                            null,
+                            null,
+                            null,
+                            null))
+                        .SingleOrDefaultAsync(cancellationToken);
+                }
+
+            default:
+                return null;
+        }
+    }
+
+    private async Task<UserSecurityData> GetSecurityDataAsync(
+        Guid userId)
+    {
+        var user = await _userManager.FindByIdAsync(
+            userId.ToString());
+
+        if (user is null)
+        {
+            return new UserSecurityData(
+                Array.Empty<string>(),
+                Array.Empty<string>());
+        }
+
+        var roles = (await _userManager.GetRolesAsync(user))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
         var permissions = new HashSet<string>(
             StringComparer.OrdinalIgnoreCase);
 
         foreach (var roleName in roles)
         {
-            var identityRole =
-                await roleManager.FindByNameAsync(roleName);
+            var role =
+                await _roleManager.FindByNameAsync(roleName);
 
-            if (identityRole is null)
+            if (role is null)
+            {
                 continue;
+            }
 
             var claims =
-                await roleManager.GetClaimsAsync(identityRole);
+                await _roleManager.GetClaimsAsync(role);
 
-            foreach (var claim in claims.Where(
-                         x => x.Type == CustomClaimTypes.Permission))
+            foreach (var claim in claims.Where(claim =>
+                         claim.Type ==
+                         CustomClaimTypes.Permission))
             {
                 permissions.Add(claim.Value);
             }
         }
 
-        var facultyIds = await dbContext
-            .Set<Domain.Entities.Users.UserFacultyScope>()
-            .AsNoTracking()
-            .Where(x => x.UserProfileId == data.Profile.Id)
-            .Select(x => x.FacultyId)
-            .ToListAsync(cancellationToken);
-
-        var majorIds = await dbContext
-            .Set<Domain.Entities.Users.UserMajorScope>()
-            .AsNoTracking()
-            .Where(x => x.UserProfileId == data.Profile.Id)
-            .Select(x => x.MajorId)
-            .ToListAsync(cancellationToken);
-
-        return new UserAccessDetailsDto(
-            data.User.Id,
-            data.Profile.FirstName + " " + data.Profile.LastName,
-            data.User.UserName ?? string.Empty,
-            data.User.IsActive && data.Profile.IsActive,
-            roles.ToArray(),
-            permissions.ToArray(),
-            facultyIds,
-            majorIds);
+        return new UserSecurityData(
+            roles,
+            permissions
+                .OrderBy(permission => permission)
+                .ToArray());
     }
 
-    public async Task<IReadOnlyCollection<UserLookupDto>> SearchUsersAsync(
-        string? search,
-        CancellationToken cancellationToken = default)
-    {
-        var query =
-            from profile in dbContext.UserProfiles.AsNoTracking()
-            join user in dbContext.Users.AsNoTracking()
-                on profile.AuthUserId equals user.Id
-            select new
-            {
-                User = user,
-                Profile = profile
-            };
+    private sealed record UserRoleReadData(
+        bool RoleIsActive,
+        string? RoleIdentifier,
+        Guid? FacultyId,
+        Guid? MajorId,
+        string? MajorTitle);
 
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var value = search.Trim();
-
-            query = query.Where(x =>
-                x.User.UserName!.Contains(value) ||
-                x.User.NationalCode.Contains(value) ||
-                x.Profile.FirstName.Contains(value) ||
-                x.Profile.LastName.Contains(value));
-        }
-
-        return await query
-            .OrderBy(x => x.Profile.FirstName)
-            .ThenBy(x => x.Profile.LastName)
-            .Take(50)
-            .Select(x => new UserLookupDto(
-                x.Profile.Id,
-                x.User.Id,
-                x.Profile.FirstName + " " + x.Profile.LastName,
-                x.User.UserName ?? string.Empty,
-                x.User.IsActive && x.Profile.IsActive))
-            .ToListAsync(cancellationToken);
-    }
-
-    private static string GetRoleName(UserRoleType role) =>
-        role switch
-        {
-            UserRoleType.Student => RoleNames.Student,
-            UserRoleType.Instructor => RoleNames.Instructor,
-            UserRoleType.EducationExpert => RoleNames.EducationExpert,
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(role),
-                "نوع کاربر معتبر نیست.")
-        };
+    private sealed record UserSecurityData(
+        IReadOnlyCollection<string> Roles,
+        IReadOnlyCollection<string> Permissions);
 }

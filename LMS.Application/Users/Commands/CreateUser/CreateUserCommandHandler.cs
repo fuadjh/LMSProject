@@ -77,8 +77,7 @@ public sealed class CreateUserCommandHandler(
                 request.FirstName,
                 request.LastName);
 
-            userProfile.SetFacultyScopes(request.FacultyScopeIds);
-            userProfile.SetMajorScopes(request.MajorScopeIds);
+          
 
             await dbContext.AddAsync(userProfile, cancellationToken);
 
@@ -101,7 +100,7 @@ public sealed class CreateUserCommandHandler(
                         cancellationToken);
                     break;
 
-                case UserRoleType.EducationExpert:
+                case UserRoleType.Expert:
                     await dbContext.AddAsync(
                         ExpertProfile.Create(userProfile.Id),
                         cancellationToken);
@@ -146,7 +145,7 @@ public sealed class CreateUserCommandHandler(
         {
             UserRoleType.Student => RoleNames.Student,
             UserRoleType.Instructor => RoleNames.Instructor,
-            UserRoleType.EducationExpert => RoleNames.EducationExpert,
+            UserRoleType.Expert => RoleNames.Expert,
             _ => throw new ArgumentOutOfRangeException(nameof(role))
         };
 }

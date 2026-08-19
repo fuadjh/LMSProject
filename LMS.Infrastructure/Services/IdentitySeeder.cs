@@ -42,7 +42,7 @@ public static class IdentitySeeder
 
         await SetRolePermissionsAsync(
       roleManager,
-      RoleNames.EducationExpert,
+      RoleNames.Expert,
       new[]
       {
         Permissions.ReferenceData.View,
@@ -71,7 +71,7 @@ public static class IdentitySeeder
         Permissions.Instructors.Edit,
         Permissions.Instructors.View,
 
-        Permissions.EducationExperts.View
+        Permissions.Experts.View
       });
 
         await SetRolePermissionsAsync(
@@ -118,7 +118,7 @@ public static class IdentitySeeder
                 UserName = "admin",
                 Email = "admin@lms.local",
                 EmailConfirmed = true,
-                IsActive = true
+               
             };
 
             var createResult = await userManager.CreateAsync(adminUser, "Admin@123456");

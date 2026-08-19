@@ -99,6 +99,6 @@ public sealed class GetFacultiesQueryHandler
         return Result<PagedResponse<FacultyListItemDto>>.Success(
             new PagedResponse<FacultyListItemDto>(
                 items,
-                totalCount));
+                totalCount,pageNumber,pageSize));
     }
 }

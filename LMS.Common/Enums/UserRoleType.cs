@@ -5,5 +5,5 @@ public enum UserRoleType
     All = 0,
     Student = 1,
     Instructor = 2,
-    EducationExpert = 3
+    Expert = 3
 }

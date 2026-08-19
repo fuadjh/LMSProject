@@ -114,6 +114,6 @@ public sealed class GetCoursesQueryHandler
         return Result<PagedResponse<CourseListItemDto>>.Success(
             new PagedResponse<CourseListItemDto>(
                 items,
-                totalCount));
+                totalCount,pageNumber,pageSize));
     }
 }

@@ -71,6 +71,8 @@ public sealed class GetUniversitiesQueryHandler
         return Result<PagedResponse<UniversityLookupDto>>.Success(
             new PagedResponse<UniversityLookupDto>(
                 items,
-                totalCount));
+        totalCount,
+        pageNumber,
+        pageSize));
     }
 }

@@ -4,7 +4,7 @@
 @using WebUi.Components.Pages.Admin.Users
 
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(
-    Policy = Permissions.EducationExperts.Create)]
+    Policy = Permissions.Experts.Create)]
 @inject UserManagementApiClient ApiClient
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
@@ -53,7 +53,7 @@
 </MudPaper>
 
 @code {
-    private readonly CreateEducationExpertVm _model = new();
+    private readonly CreateExpertVm _model = new();
 
     private ExistingPersonVm? _existingPerson;
     private bool _checkingNationalCode;
@@ -94,7 +94,7 @@
 
         try
         {
-            await ApiClient.CreateEducationExpertAsync(
+            await ApiClient.CreateExpertAsync(
                 _model);
 
             Snackbar.Add(

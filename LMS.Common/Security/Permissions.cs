@@ -64,11 +64,11 @@ public static class Permissions
         public const string View = "Instructors.View";
     }
 
-    public static class EducationExperts
+    public static class Experts
     {
-        public const string Create = "EducationExperts.Create";
-        public const string Edit = "EducationExperts.Edit";
-        public const string View = "EducationExperts.View";
+        public const string Create = "Experts.Create";
+        public const string Edit = "Experts.Edit";
+        public const string View = "Experts.View";
     }
 
     public static class Security
@@ -117,9 +117,9 @@ public static class Permissions
         Instructors.Edit,
         Instructors.View,
 
-        EducationExperts.Create,
-        EducationExperts.Edit,
-        EducationExperts.View,
+        Experts.Create,
+        Experts.Edit,
+        Experts.View,
 
         Security.RolesManage,
         Security.UserRolesAssign,
