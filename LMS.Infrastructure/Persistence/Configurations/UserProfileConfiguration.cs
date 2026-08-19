@@ -1,5 +1,4 @@
 ﻿using Domain.Entities.Users;
-using Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,50 +7,40 @@ namespace Infrastructure.Persistence.Configurations;
 public sealed class UserProfileConfiguration
     : IEntityTypeConfiguration<UserProfile>
 {
-    public void Configure(EntityTypeBuilder<UserProfile> builder)
+    public void Configure(
+        EntityTypeBuilder<UserProfile> builder)
     {
         builder.ToTable("UserProfiles");
 
-        builder.HasKey(x => x.Id);
+        builder.HasKey(profile => profile.Id);
 
-        builder.Property(x => x.Id)
+        builder.Property(profile => profile.Id)
             .ValueGeneratedNever();
 
-        builder.Property(x => x.FirstName)
+        builder.Property(profile => profile.AuthUserId)
+            .IsRequired();
+
+        builder.Property(profile => profile.FirstName)
             .HasMaxLength(100)
             .IsRequired();
 
-        builder.Property(x => x.LastName)
+        builder.Property(profile => profile.LastName)
             .HasMaxLength(100)
             .IsRequired();
 
-        builder.Property(x => x.IsActive)
+        builder.Property(profile => profile.NationalCode)
+            .HasMaxLength(10)
+            .IsUnicode(false);
+
+        builder.Property(profile => profile.IsActive)
+            .HasDefaultValue(true)
             .IsRequired();
 
-        builder.HasIndex(x => x.AuthUserId)
+        builder.HasIndex(profile => profile.AuthUserId)
             .IsUnique();
 
-        builder.HasOne<ApplicationUser>()
-            .WithOne()
-            .HasForeignKey<UserProfile>(x => x.AuthUserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasMany(x => x.FacultyScopes)
-            .WithOne()
-            .HasForeignKey(x => x.UserProfileId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasMany(x => x.MajorScopes)
-            .WithOne()
-            .HasForeignKey(x => x.UserProfileId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.Navigation(x => x.FacultyScopes)
-            .HasField("_facultyScopes")
-            .UsePropertyAccessMode(PropertyAccessMode.Field);
-
-        builder.Navigation(x => x.MajorScopes)
-            .HasField("_majorScopes")
-            .UsePropertyAccessMode(PropertyAccessMode.Field);
+        builder.HasIndex(profile => profile.NationalCode)
+            .IsUnique()
+            .HasFilter("[NationalCode] IS NOT NULL");
     }
 }

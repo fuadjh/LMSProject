@@ -9,4 +9,4 @@ public sealed record SetUserScopesCommand(
     UserRoleType RoleType,
     IReadOnlyCollection<Guid> FacultyIds,
     IReadOnlyCollection<Guid> MajorIds)
-    : IRequest<Result<bool>>;
+    : IRequest<Result>;

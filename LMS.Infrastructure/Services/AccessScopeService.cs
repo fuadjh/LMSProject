@@ -6,37 +6,82 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Services;
 
-public sealed class AccessScopeService : IAccessScopeService
+public sealed class AccessScopeService
+    : IAccessScopeService
 {
     private readonly LmsDbContext _dbContext;
 
-    public AccessScopeService(LmsDbContext dbContext)
+    public AccessScopeService(
+        LmsDbContext dbContext)
     {
         _dbContext = dbContext;
     }
 
-    public async Task<bool> HasFacultyAccessAsync(Guid UserId, Guid facultyId, CancellationToken cancellationToken = default)
+    public Task<bool> HasFacultyAccessAsync(
+        Guid userId,
+        Guid facultyId,
+        CancellationToken cancellationToken = default)
     {
-        return await _dbContext.Set<UserFacultyScope>()
-            .AnyAsync(x => x.UserId == UserId && x.FacultyId == facultyId, cancellationToken);
+        if (userId == Guid.Empty ||
+            facultyId == Guid.Empty)
+        {
+            return Task.FromResult(false);
+        }
+
+        return _dbContext
+            .Set<UserFacultyScope>()
+            .AsNoTracking()
+            .AnyAsync(
+                scope =>
+                    scope.UserId == userId &&
+                    scope.FacultyId == facultyId,
+                cancellationToken);
     }
 
-    public async Task<bool> HasMajorAccessAsync(Guid UserId, Guid majorId, CancellationToken cancellationToken = default)
+    public async Task<bool> HasMajorAccessAsync(
+        Guid userId,
+        Guid majorId,
+        CancellationToken cancellationToken = default)
     {
-        var directMajorAccess = await _dbContext.Set<UserMajorScope>()
-            .AnyAsync(x => x.UserId == UserId && x.MajorId == majorId, cancellationToken);
+        if (userId == Guid.Empty ||
+            majorId == Guid.Empty)
+        {
+            return false;
+        }
 
-        if (directMajorAccess)
+        var hasDirectMajorAccess =
+            await _dbContext
+                .Set<UserMajorScope>()
+                .AsNoTracking()
+                .AnyAsync(
+                    scope =>
+                        scope.UserId == userId &&
+                        scope.MajorId == majorId,
+                    cancellationToken);
+
+        if (hasDirectMajorAccess)
+        {
             return true;
+        }
 
-        var facultyId = await _dbContext.Set<Major>()
-            .Where(x => x.Id == majorId && x.IsActive)
-            .Select(x => (Guid?)x.FacultyId)
-            .SingleOrDefaultAsync(cancellationToken);
+        var facultyId =
+            await _dbContext
+                .Set<Major>()
+                .AsNoTracking()
+                .Where(major =>
+                    major.Id == majorId &&
+                    major.IsActive)
+                .Select(major => (Guid?)major.FacultyId)
+                .SingleOrDefaultAsync(cancellationToken);
 
         if (!facultyId.HasValue)
+        {
             return false;
+        }
 
-        return await HasFacultyAccessAsync(UserId, facultyId.Value, cancellationToken);
+        return await HasFacultyAccessAsync(
+            userId,
+            facultyId.Value,
+            cancellationToken);
     }
 }

@@ -12,18 +12,26 @@ public sealed record GetUsersQuery(
     int PageSize = 20,
     string? SortBy = null,
     bool Descending = false)
-    : IRequest<PagedResponse<UserProfileListItemDto>>;
+    : IRequest<PagedResponse<UserListItemDto>>;
 
-public sealed class GetUsersQueryHandler(
-    IUserAdminReadService readService)
+public sealed class GetUsersQueryHandler
     : IRequestHandler<
         GetUsersQuery,
-        PagedResponse<UserProfileListItemDto>>
+        PagedResponse<UserListItemDto>>
 {
-    public Task<PagedResponse<UserProfileListItemDto>> Handle(
+    private readonly IUserAdminReadService _readService;
+
+    public GetUsersQueryHandler(
+        IUserAdminReadService readService)
+    {
+        _readService = readService;
+    }
+
+    public Task<PagedResponse<UserListItemDto>> Handle(
         GetUsersQuery request,
-        CancellationToken cancellationToken) =>
-        readService.GetUsersAsync(
+        CancellationToken cancellationToken)
+    {
+        return _readService.GetUsersAsync(
             request.Role,
             request.Search,
             request.Page,
@@ -31,24 +39,34 @@ public sealed class GetUsersQueryHandler(
             request.SortBy,
             request.Descending,
             cancellationToken);
+    }
 }
 
 public sealed record GetUserDetailsQuery(
     Guid UserId,
     UserRoleType Role)
-    : IRequest<UserProfileDetailsDto?>;
+    : IRequest<UserDetailsDto?>;
 
-public sealed class GetUserDetailsQueryHandler(
-    IUserAdminReadService readService)
+public sealed class GetUserDetailsQueryHandler
     : IRequestHandler<
         GetUserDetailsQuery,
-        UserProfileDetailsDto?>
+        UserDetailsDto?>
 {
-    public Task<UserProfileDetailsDto?> Handle(
+    private readonly IUserAdminReadService _readService;
+
+    public GetUserDetailsQueryHandler(
+        IUserAdminReadService readService)
+    {
+        _readService = readService;
+    }
+
+    public Task<UserDetailsDto?> Handle(
         GetUserDetailsQuery request,
-        CancellationToken cancellationToken) =>
-        readService.GetUserDetailsAsync(
+        CancellationToken cancellationToken)
+    {
+        return _readService.GetUserDetailsAsync(
             request.UserId,
             request.Role,
             cancellationToken);
+    }
 }
